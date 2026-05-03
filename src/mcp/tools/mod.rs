@@ -13,8 +13,10 @@
 //! routing surface thin: it only declares the tool name and description,
 //! then delegates to `run`.
 
+pub mod find_domain;
 pub mod get_service;
 pub mod list_service_backends;
+pub mod list_service_dictionaries;
 pub mod list_service_directors;
 pub mod list_service_domains;
 pub mod list_service_healthchecks;

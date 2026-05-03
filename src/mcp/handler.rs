@@ -37,6 +37,16 @@ impl Handler {
         }
     }
 
+    /// Looks up a Fastly account domain by FQDN. Behavior lives in
+    /// [`tools::find_domain::run`].
+    #[tool(description = "Find a domain in the Fastly account by FQDN.")]
+    async fn find_domain(
+        &self,
+        Parameters(args): Parameters<tools::find_domain::FindDomainArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        tools::find_domain::run(&self.state, args).await
+    }
+
     /// Fetches a Fastly service by id. Behavior lives in
     /// [`tools::get_service::run`].
     #[tool(
@@ -87,6 +97,19 @@ impl Handler {
         Parameters(args): Parameters<tools::list_service_directors::ListServiceDirectorsArgs>,
     ) -> Result<CallToolResult, McpError> {
         tools::list_service_directors::run(&self.state, args).await
+    }
+
+    /// Lists the edge dictionaries of a specific Fastly service version
+    /// together with their key/value items. Behavior lives in
+    /// [`tools::list_service_dictionaries::run`].
+    #[tool(description = "List a Fastly service version's edge dictionaries with their key/value items.")]
+    async fn list_service_dictionaries(
+        &self,
+        Parameters(args): Parameters<
+            tools::list_service_dictionaries::ListServiceDictionariesArgs,
+        >,
+    ) -> Result<CallToolResult, McpError> {
+        tools::list_service_dictionaries::run(&self.state, args).await
     }
 
     /// Lists a Fastly service's open draft versions sitting above the
@@ -234,13 +257,33 @@ Each Fastly service has multiple versions; exactly one is active at any time, an
 The `list_service_*` tools all take `(service_id, version)` and return a deterministic snapshot — \
 two calls with identical arguments yield identical results.
 
-Use `get_service` to obtain a service's currently-active `version` and `type` (`vcl` or `wasm`), \
-or `list_service_versions` to enumerate every version (active + historical/locked) — useful for \
-rollback investigation or diffing across deploys. \
-Then pass `(service_id, version)` to one of:
+Entry points (no `version` argument):
+
+`find_domain` looks up a domain in the account's Domain Management v1 catalog by FQDN.
+Returns the domain id, FQDN, associated `service_id` (when bound), and TLS activation/verification flags.
+Use it when you only know a hostname and need to discover which service serves it.
+The optional `fqdn_match` parameter controls how Fastly compares the input —
+accepted values: `\"exact\"`, `\"contains\"`, `\"begins_with\"`, `\"ends_with\"`.
+Without it, Fastly applies a permissive default that may also return sub-domains
+(e.g. a query for `example.com` may also surface `sub.example.com`).
+
+`get_service` fetches a service's metadata by `service_id`.
+Returns the service name, type (`vcl` or `wasm`), the currently-active `version` number, timestamps,
+and a `dependencies` map counting every config object attached to the active version
+(backends, directors, domains, healthchecks, plus the VCL-only object types when applicable).
+Use it as the standard entry point once a `service_id` is in hand —
+the active version it returns is what you'll feed to the version-scoped tools below.
+
+`list_service_versions` enumerates a service's active version plus any open draft versions sitting above it.
+Locked historical versions and post-rollback artifacts are filtered out.
+Use it to inspect in-flight work that hasn't been deployed yet —
+typically when the agent needs to reason about pending changes or compare a draft against the live config.
+
+Once a `(service_id, version)` pair is in hand, pass it to one of:
 
 Multi-kind (works on every service):
 - `list_service_backends` — origin backends
+- `list_service_dictionaries` — edge dictionaries with their key/value items
 - `list_service_directors` — load-balancing groups of backends
 - `list_service_domains` — domains routed to this version
 - `list_service_healthchecks` — health probes
