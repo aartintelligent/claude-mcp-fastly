@@ -39,7 +39,7 @@ impl Handler {
     /// Fetches a Fastly service by id. Behavior lives in
     /// [`tools::get_service::run`].
     #[tool(
-        description = "Fetch a Fastly service's metadata (name, type, currently-active version) by `service_id`."
+        description = "Get a Fastly service's metadata and active version number."
     )]
     async fn get_service(
         &self,
@@ -48,11 +48,9 @@ impl Handler {
         tools::get_service::run(&self.state, args).await
     }
 
-    /// Lists the backends of a Fastly service's active version. Behavior
+    /// Lists the backends of a specific Fastly service version. Behavior
     /// lives in [`tools::list_service_backends::run`].
-    #[tool(
-        description = "List the origin backends of a Fastly service's currently-active version, by `service_id`. Each backend includes name, address, port, TLS, shielding, weight, and attached healthcheck."
-    )]
+    #[tool(description = "List a Fastly service version's origin backends.")]
     async fn list_service_backends(
         &self,
         Parameters(args): Parameters<tools::list_service_backends::ListServiceBackendsArgs>,
@@ -60,11 +58,9 @@ impl Handler {
         tools::list_service_backends::run(&self.state, args).await
     }
 
-    /// Lists the healthchecks of a Fastly service's active version. Behavior
+    /// Lists the healthchecks of a specific Fastly service version. Behavior
     /// lives in [`tools::list_service_healthchecks::run`].
-    #[tool(
-        description = "List the healthcheck probes of a Fastly service's currently-active version, by `service_id`. Returns probe shape (host, path, method, expected_response) and timing (interval, timeout, window, threshold)."
-    )]
+    #[tool(description = "List a Fastly service version's healthcheck probes.")]
     async fn list_service_healthchecks(
         &self,
         Parameters(args): Parameters<tools::list_service_healthchecks::ListServiceHealthchecksArgs>,
@@ -72,16 +68,130 @@ impl Handler {
         tools::list_service_healthchecks::run(&self.state, args).await
     }
 
-    /// Lists the domains of a Fastly service's active version. Behavior
+    /// Lists the domains of a specific Fastly service version. Behavior
     /// lives in [`tools::list_service_domains::run`].
-    #[tool(
-        description = "List the FQDNs routed to a Fastly service's currently-active version, by `service_id`."
-    )]
+    #[tool(description = "List a Fastly service version's domains.")]
     async fn list_service_domains(
         &self,
         Parameters(args): Parameters<tools::list_service_domains::ListServiceDomainsArgs>,
     ) -> Result<CallToolResult, McpError> {
         tools::list_service_domains::run(&self.state, args).await
+    }
+
+    /// Lists the directors of a specific Fastly service version. Behavior
+    /// lives in [`tools::list_service_directors::run`].
+    #[tool(description = "List a Fastly service version's directors (load-balancing groups of backends).")]
+    async fn list_service_directors(
+        &self,
+        Parameters(args): Parameters<tools::list_service_directors::ListServiceDirectorsArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        tools::list_service_directors::run(&self.state, args).await
+    }
+
+    /// Lists the apex redirects of a specific Fastly VCL service version.
+    /// Behavior lives in [`tools::list_service_vcl_apex_redirects::run`].
+    #[tool(description = "List a Fastly VCL service version's apex redirects.")]
+    async fn list_service_vcl_apex_redirects(
+        &self,
+        Parameters(args): Parameters<
+            tools::list_service_vcl_apex_redirects::ListServiceVclApexRedirectsArgs,
+        >,
+    ) -> Result<CallToolResult, McpError> {
+        tools::list_service_vcl_apex_redirects::run(&self.state, args).await
+    }
+
+    /// Lists the cache-settings rules of a specific Fastly VCL service
+    /// version. Behavior lives in
+    /// [`tools::list_service_vcl_cache_settings::run`].
+    #[tool(description = "List a Fastly VCL service version's cache-settings rules.")]
+    async fn list_service_vcl_cache_settings(
+        &self,
+        Parameters(args): Parameters<
+            tools::list_service_vcl_cache_settings::ListServiceVclCacheSettingsArgs,
+        >,
+    ) -> Result<CallToolResult, McpError> {
+        tools::list_service_vcl_cache_settings::run(&self.state, args).await
+    }
+
+    /// Lists the conditions of a specific Fastly VCL service version.
+    /// Behavior lives in [`tools::list_service_vcl_conditions::run`].
+    #[tool(description = "List a Fastly VCL service version's conditions (named VCL boolean expressions).")]
+    async fn list_service_vcl_conditions(
+        &self,
+        Parameters(args): Parameters<
+            tools::list_service_vcl_conditions::ListServiceVclConditionsArgs,
+        >,
+    ) -> Result<CallToolResult, McpError> {
+        tools::list_service_vcl_conditions::run(&self.state, args).await
+    }
+
+    /// Lists the gzip configurations of a specific Fastly VCL service
+    /// version. Behavior lives in [`tools::list_service_vcl_gzip::run`].
+    #[tool(description = "List a Fastly VCL service version's gzip compression configurations.")]
+    async fn list_service_vcl_gzip(
+        &self,
+        Parameters(args): Parameters<tools::list_service_vcl_gzip::ListServiceVclGzipArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        tools::list_service_vcl_gzip::run(&self.state, args).await
+    }
+
+    /// Lists the header rules of a specific Fastly VCL service version.
+    /// Behavior lives in [`tools::list_service_vcl_headers::run`].
+    #[tool(description = "List a Fastly VCL service version's header rules (set/append/delete/regex).")]
+    async fn list_service_vcl_headers(
+        &self,
+        Parameters(args): Parameters<tools::list_service_vcl_headers::ListServiceVclHeadersArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        tools::list_service_vcl_headers::run(&self.state, args).await
+    }
+
+    /// Lists the rate limiters of a specific Fastly VCL service version.
+    /// Behavior lives in [`tools::list_service_vcl_rate_limiters::run`].
+    #[tool(description = "List a Fastly VCL service version's rate limiters.")]
+    async fn list_service_vcl_rate_limiters(
+        &self,
+        Parameters(args): Parameters<
+            tools::list_service_vcl_rate_limiters::ListServiceVclRateLimitersArgs,
+        >,
+    ) -> Result<CallToolResult, McpError> {
+        tools::list_service_vcl_rate_limiters::run(&self.state, args).await
+    }
+
+    /// Lists the request-settings rules of a specific Fastly VCL service
+    /// version. Behavior lives in
+    /// [`tools::list_service_vcl_request_settings::run`].
+    #[tool(description = "List a Fastly VCL service version's request-settings rules.")]
+    async fn list_service_vcl_request_settings(
+        &self,
+        Parameters(args): Parameters<
+            tools::list_service_vcl_request_settings::ListServiceVclRequestSettingsArgs,
+        >,
+    ) -> Result<CallToolResult, McpError> {
+        tools::list_service_vcl_request_settings::run(&self.state, args).await
+    }
+
+    /// Lists the response objects of a specific Fastly VCL service version.
+    /// Behavior lives in [`tools::list_service_vcl_response_objects::run`].
+    #[tool(description = "List a Fastly VCL service version's response objects (canned HTTP responses).")]
+    async fn list_service_vcl_response_objects(
+        &self,
+        Parameters(args): Parameters<
+            tools::list_service_vcl_response_objects::ListServiceVclResponseObjectsArgs,
+        >,
+    ) -> Result<CallToolResult, McpError> {
+        tools::list_service_vcl_response_objects::run(&self.state, args).await
+    }
+
+    /// Lists the VCL snippets of a specific Fastly VCL service version.
+    /// Behavior lives in [`tools::list_service_vcl_snippets::run`].
+    #[tool(description = "List a Fastly VCL service version's VCL snippets (code injected into a specific request-lifecycle phase).")]
+    async fn list_service_vcl_snippets(
+        &self,
+        Parameters(args): Parameters<
+            tools::list_service_vcl_snippets::ListServiceVclSnippetsArgs,
+        >,
+    ) -> Result<CallToolResult, McpError> {
+        tools::list_service_vcl_snippets::run(&self.state, args).await
     }
 }
 
@@ -106,16 +216,35 @@ impl ServerHandler for Handler {
 /// for cross-cutting hints: scope, freshness model, typical workflow, and
 /// boundary behavior shared by every tool.
 const INSTRUCTIONS: &str = "\
-Read-only access to Fastly's management API for inspecting service configuration in a single Fastly account \
-(the one whose API token was provided to this server at startup).
+Read-only inspection of a Fastly account's service configuration.
 
-The `list_service_*` tools always read a service's currently-active Fastly version. \
-Versions are immutable once active, so the returned data reflects what is being served right now.
+Each Fastly service has multiple versions; exactly one is active at any time, and active versions are immutable. \
+The `list_service_*` tools all take `(service_id, version)` and return a deterministic snapshot — \
+two calls with identical arguments yield identical results.
 
-Typical workflow: call `get_service` first with a known `service_id` to confirm the service exists and learn its active version, \
-then chain into `list_service_backends`, `list_service_domains`, or `list_service_healthchecks` for configuration details. \
-A backend's `healthcheck` field cross-references an entry in `list_service_healthchecks` by `name`.
+Use `get_service` to obtain a service's currently-active `version` and `type` (`vcl` or `wasm`), \
+then pass `(service_id, version)` to one of:
 
-When a `service_id` is unknown or the service has no active version, tools return a plain-text explanation \
-rather than an error, so the agent can act on the signal directly.\
+Multi-kind (works on every service):
+- `list_service_backends` — origin backends
+- `list_service_directors` — load-balancing groups of backends
+- `list_service_domains` — domains routed to this version
+- `list_service_healthchecks` — health probes
+
+VCL-only (require `type: \"vcl\"`):
+- `list_service_vcl_apex_redirects` — apex-domain redirects
+- `list_service_vcl_cache_settings` — cache rules (TTL, action, gating)
+- `list_service_vcl_conditions` — named VCL boolean expressions
+- `list_service_vcl_gzip` — gzip compression configurations
+- `list_service_vcl_headers` — header rules (set/append/delete/regex)
+- `list_service_vcl_rate_limiters` — RPS-based rate limiters
+- `list_service_vcl_request_settings` — request-shaping rules
+- `list_service_vcl_response_objects` — canned HTTP responses
+- `list_service_vcl_snippets` — VCL code snippets
+
+Cross-references between tools:
+- A backend's `healthcheck` field is the `name` of a `list_service_healthchecks` entry.
+- A director's `backends` array contains the `name`s of `list_service_backends` entries.
+- Cache settings, headers, request/response settings, and rate limiters reference VCL conditions \
+  by `name` via their `*_condition` fields — chain with `list_service_vcl_conditions`.\
 ";

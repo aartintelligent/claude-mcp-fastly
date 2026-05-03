@@ -15,5 +15,15 @@
 
 pub mod get_service;
 pub mod list_service_backends;
+pub mod list_service_directors;
 pub mod list_service_domains;
 pub mod list_service_healthchecks;
+pub mod list_service_vcl_apex_redirects;
+pub mod list_service_vcl_cache_settings;
+pub mod list_service_vcl_conditions;
+pub mod list_service_vcl_gzip;
+pub mod list_service_vcl_headers;
+pub mod list_service_vcl_rate_limiters;
+pub mod list_service_vcl_request_settings;
+pub mod list_service_vcl_response_objects;
+pub mod list_service_vcl_snippets;
