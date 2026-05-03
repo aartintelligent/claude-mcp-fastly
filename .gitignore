@@ -1,0 +1,64 @@
+# ---- Rust / Cargo ----
+# Répertoire de compilation
+/target/
+
+# Fichiers de build personnalisés (rare, mais possible)
+**/*.rs.bk
+
+# Profilage et benchmarking
+cargo-profiler.log
+perf.data*
+flamegraph.svg
+
+# ---- Dépendances binaires (ex : cargo install --path .) ----
+*.exe
+*.dll
+*.dylib
+*.so
+
+# ---- Éditeurs / IDE ----
+# VS Code
+.vscode/
+*.code-workspace
+
+# IntelliJ / CLion / RustRover
+.idea/
+
+# Emacs / Vim
+*~
+\#*\#
+.\#*
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# ---- OS spécifiques ----
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# ---- Tests / Générés ----
+# Coverage (ex: grcov, tarpaulin)
+htmlcov/
+lcov.info
+coverage/
+*.profraw
+*.profdata
+
+# Doc générée par cargo doc
+/target/doc/
+
+# ---- Autres (selon besoins) ----
+# Fichiers de logs
+*.log
+
+# dumps ou fichiers temporaires
+*.tmp
+*.swp
+
+# ---- Env ----
+.env

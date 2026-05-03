@@ -1,0 +1,18 @@
+//! MCP tool implementations.
+//!
+//! Each submodule corresponds to a single tool exposed to the client.
+//! By convention every tool module declares:
+//!
+//! - a public `Args` struct deriving [`serde::Deserialize`] and
+//!   [`schemars::JsonSchema`], used both by the rmcp parameter extractor
+//!   and to generate the JSON schema advertised on `tools/list`;
+//! - a public `run` async function taking `(&AppState, Args)` and returning
+//!   `Result<CallToolResult, McpError>`.
+//!
+//! The `#[tool_router]` block in [`crate::mcp::handler::Handler`] keeps the
+//! routing surface thin: it only declares the tool name and description,
+//! then delegates to `run`.
+
+pub mod find_domain;
+pub mod get_service;
+pub mod hello;
