@@ -49,17 +49,14 @@ pub struct ServerConfig {
     pub port: u16,
 }
 
-/// Base URL of the Fastly management API.
-///
-/// Hardcoded on purpose: there is no operational reason to point this server
-/// at anything else, and exposing it as a config knob would only invite
-/// misconfiguration. The token is sent on every request via the `Fastly-Key`
-/// header by [`fastly_api`].
-pub const FASTLY_BASE_URL: &str = "https://api.fastly.com";
-
-/// Fastly API credentials.
+/// Fastly API credentials and endpoint.
 #[derive(Debug, Clone, Deserialize)]
 pub struct FastlyConfig {
+    /// Base URL of the Fastly management API. Defaults to
+    /// `https://api.fastly.com` via [`Config::load`]; overriding it is
+    /// almost never useful in production.
+    pub base_url: String,
+
     /// Fastly API token. Required — the server fails to start when absent.
     /// Set via `APP_FASTLY__API_TOKEN`.
     pub api_token: String,
@@ -93,6 +90,7 @@ impl Config {
         let cfg = ConfigBuilder::builder()
             .set_default("server.host", "127.0.0.1")?
             .set_default("server.port", 8000)?
+            .set_default("fastly.base_url", "https://api.fastly.com")?
             .add_source(
                 File::with_name(&format!("/etc/{PROJECT_NAME}/config.json"))
                     .format(FileFormat::Json)

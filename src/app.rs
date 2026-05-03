@@ -12,7 +12,7 @@ use fastly_api::apis::configuration::{
     ApiKey, Configuration as FastlyConfiguration,
 };
 
-use crate::config::{Config, FASTLY_BASE_URL, FastlyConfig};
+use crate::config::{Config, FastlyConfig};
 
 /// Read-only services and configuration shared across request handlers.
 ///
@@ -78,14 +78,16 @@ impl AppState {
 
 /// Maps our [`FastlyConfig`] onto the [`fastly_api`] client configuration.
 ///
-/// The base URL is hardcoded via [`FASTLY_BASE_URL`]. `..Default::default()`
-/// reuses the upstream defaults for fields we do not expose (user agent,
-/// rate-limit counters, the freshly-allocated `reqwest::Client`). The api_key
-/// field is always overridden, so the upstream `FASTLY_API_TOKEN` env-var
-/// fallback baked into the default impl is never observed in practice.
+/// The base URL flows through [`FastlyConfig::base_url`] (defaulted by
+/// [`crate::config::Config::load`] so callers don't have to set it).
+/// `..Default::default()` reuses the upstream defaults for fields we do not
+/// expose (user agent, rate-limit counters, the freshly-allocated
+/// `reqwest::Client`). The api_key field is always overridden, so the
+/// upstream `FASTLY_API_TOKEN` env-var fallback baked into the default impl
+/// is never observed in practice.
 fn build_fastly_configuration(cfg: &FastlyConfig) -> FastlyConfiguration {
     FastlyConfiguration {
-        base_path: FASTLY_BASE_URL.to_owned(),
+        base_path: cfg.base_url.clone(),
         api_key: Some(ApiKey {
             prefix: None,
             key: cfg.api_token.clone(),
