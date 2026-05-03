@@ -1,23 +1,21 @@
-//! `list_service_versions` tool: list a Fastly service's open draft
-//! versions sitting above the currently-active one.
+//! `list_service_versions` tool: list a Fastly service's active version
+//! and the draft versions sitting above it.
 //!
 //! Unlike the other `list_service_*` tools, this one takes only
-//! `service_id` (not `version`) — its purpose is to surface the
-//! in-flight work that hasn't been deployed yet.
+//! `service_id` (not `version`) — its purpose is to surface the current
+//! production line plus any in-flight work that hasn't been deployed yet.
 //!
 //! Filter applied: `version_number >= active_version_number AND
-//! locked == false`. That removes:
+//! (active OR not locked)`. That removes:
 //!
 //! - the historical lineage (older versions, all locked);
-//! - the currently-active version itself (active versions are always
-//!   locked — and the agent already knows it from `get_service`);
 //! - versions left locked above active by a rollback (they were active
 //!   at some point in the past but are no longer part of the workflow).
 //!
-//! What remains is exactly the set of unlocked, editable versions that
-//! sit above the production line. When the service has no active version
-//! (e.g., brand-new, never deployed) the version-number filter is
-//! disabled but the `locked == false` filter still applies.
+//! What remains is the active version itself plus the unlocked draft
+//! versions above it. When the service has no active version (e.g.,
+//! brand-new, never deployed) the version-number filter is disabled but
+//! the locked-only-when-not-active filter still applies.
 
 use fastly_api::apis::Error;
 use fastly_api::apis::version_api::{ListServiceVersionsParams, list_service_versions};
@@ -126,11 +124,11 @@ pub async fn run(
         }
     };
 
-    // Filter to unlocked versions whose number is >= the active version's.
-    // The active version itself is locked, so it is filtered out — the
-    // agent already learned its number from `get_service`. Older
-    // historical versions and post-rollback locked versions are filtered
-    // out the same way.
+    // Keep the active version and any unlocked drafts above it. We drop
+    // versions older than the active (historical lineage) and versions
+    // left locked above the active by a rollback (no longer part of the
+    // workflow). The active version itself is locked but is preserved
+    // explicitly via the `v.active == Some(true)` clause.
     let active_number = versions
         .iter()
         .find(|v| v.active == Some(true))
@@ -143,7 +141,8 @@ pub async fn run(
                 Some(cutoff) => v.number.is_some_and(|n| n >= cutoff),
                 None => true,
             };
-            above_active && v.locked != Some(true)
+            let active_or_unlocked = v.active == Some(true) || v.locked != Some(true);
+            above_active && active_or_unlocked
         })
         .map(VersionSummary::from_response)
         .collect();

@@ -11,6 +11,7 @@ use rmcp::{
     tool, tool_handler, tool_router,
 };
 
+
 use crate::app::AppState;
 use crate::mcp::tools;
 
@@ -91,7 +92,7 @@ impl Handler {
     /// Lists a Fastly service's open draft versions sitting above the
     /// currently-active one. Behavior lives in
     /// [`tools::list_service_versions::run`].
-    #[tool(description = "List a Fastly service's draft versions above the active one.")]
+    #[tool(description = "List a Fastly service's active version and any drafts above it.")]
     async fn list_service_versions(
         &self,
         Parameters(args): Parameters<tools::list_service_versions::ListServiceVersionsArgs>,

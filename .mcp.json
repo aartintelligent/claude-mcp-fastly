@@ -3,6 +3,10 @@
     "rustrover": {
       "url": "http://127.0.0.1:64342/sse",
       "type": "sse"
+    },
+    "fastly": {
+      "url": "http://127.0.0.1:8000/mcp",
+      "type": "http"
     }
   }
 }
