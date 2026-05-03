@@ -88,6 +88,17 @@ impl Handler {
         tools::list_service_directors::run(&self.state, args).await
     }
 
+    /// Lists a Fastly service's open draft versions sitting above the
+    /// currently-active one. Behavior lives in
+    /// [`tools::list_service_versions::run`].
+    #[tool(description = "List a Fastly service's draft versions above the active one.")]
+    async fn list_service_versions(
+        &self,
+        Parameters(args): Parameters<tools::list_service_versions::ListServiceVersionsArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        tools::list_service_versions::run(&self.state, args).await
+    }
+
     /// Lists the apex redirects of a specific Fastly VCL service version.
     /// Behavior lives in [`tools::list_service_vcl_apex_redirects::run`].
     #[tool(description = "List a Fastly VCL service version's apex redirects.")]
@@ -223,7 +234,9 @@ The `list_service_*` tools all take `(service_id, version)` and return a determi
 two calls with identical arguments yield identical results.
 
 Use `get_service` to obtain a service's currently-active `version` and `type` (`vcl` or `wasm`), \
-then pass `(service_id, version)` to one of:
+or `list_service_versions` to enumerate every version (active + historical/locked) — useful for \
+rollback investigation or diffing across deploys. \
+Then pass `(service_id, version)` to one of:
 
 Multi-kind (works on every service):
 - `list_service_backends` — origin backends

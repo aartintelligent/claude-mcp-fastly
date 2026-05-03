@@ -18,6 +18,7 @@ pub mod list_service_backends;
 pub mod list_service_directors;
 pub mod list_service_domains;
 pub mod list_service_healthchecks;
+pub mod list_service_versions;
 pub mod list_service_vcl_apex_redirects;
 pub mod list_service_vcl_cache_settings;
 pub mod list_service_vcl_conditions;
