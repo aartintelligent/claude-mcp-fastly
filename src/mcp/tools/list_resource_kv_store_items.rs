@@ -11,9 +11,7 @@
 //! only return keys starting with a given string, server-side.
 
 use fastly_api::apis::Error;
-use fastly_api::apis::kv_store_item_api::{
-    KvStoreListItemKeysParams, kv_store_list_item_keys,
-};
+use fastly_api::apis::kv_store_item_api::{KvStoreListItemKeysParams, kv_store_list_item_keys};
 use rmcp::{
     ErrorData as McpError,
     model::{CallToolResult, Content},

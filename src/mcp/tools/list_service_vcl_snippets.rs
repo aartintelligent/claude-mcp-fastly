@@ -122,7 +122,8 @@ pub async fn run(
         }
     };
 
-    let summaries: Vec<SnippetSummary> = snippets.iter().map(SnippetSummary::from_response).collect();
+    let summaries: Vec<SnippetSummary> =
+        snippets.iter().map(SnippetSummary::from_response).collect();
 
     Ok(CallToolResult::success(vec![Content::json(&summaries)?]))
 }

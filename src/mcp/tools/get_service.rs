@@ -219,28 +219,33 @@ async fn fetch_dependencies(
     is_vcl: bool,
 ) -> Result<Dependencies, McpError> {
     let backends_fut = count_dep!(
-        state, service_id, version,
-        list_backends, ListBackendsParams,
+        state,
+        service_id,
+        version,
+        list_backends,
+        ListBackendsParams,
         "list_backends"
     );
     let directors_fut = count_directors(state, service_id, version);
     let domains_fut = count_dep!(
-        state, service_id, version,
-        list_domains, ListDomainsParams,
+        state,
+        service_id,
+        version,
+        list_domains,
+        ListDomainsParams,
         "list_domains"
     );
     let healthchecks_fut = count_dep!(
-        state, service_id, version,
-        list_healthchecks, ListHealthchecksParams,
+        state,
+        service_id,
+        version,
+        list_healthchecks,
+        ListHealthchecksParams,
         "list_healthchecks"
     );
 
-    let (backends, directors, domains, healthchecks) = tokio::try_join!(
-        backends_fut,
-        directors_fut,
-        domains_fut,
-        healthchecks_fut,
-    )?;
+    let (backends, directors, domains, healthchecks) =
+        tokio::try_join!(backends_fut, directors_fut, domains_fut, healthchecks_fut,)?;
 
     if !is_vcl {
         return Ok(Dependencies {
@@ -261,48 +266,75 @@ async fn fetch_dependencies(
     }
 
     let apex_fut = count_dep!(
-        state, service_id, version,
-        list_apex_redirects, ListApexRedirectsParams,
+        state,
+        service_id,
+        version,
+        list_apex_redirects,
+        ListApexRedirectsParams,
         "list_apex_redirects"
     );
     let cache_fut = count_dep!(
-        state, service_id, version,
-        list_cache_settings, ListCacheSettingsParams,
+        state,
+        service_id,
+        version,
+        list_cache_settings,
+        ListCacheSettingsParams,
         "list_cache_settings"
     );
     let conditions_fut = count_dep!(
-        state, service_id, version,
-        list_conditions, ListConditionsParams,
+        state,
+        service_id,
+        version,
+        list_conditions,
+        ListConditionsParams,
         "list_conditions"
     );
     let gzip_fut = count_dep!(
-        state, service_id, version,
-        list_gzip_configs, ListGzipConfigsParams,
+        state,
+        service_id,
+        version,
+        list_gzip_configs,
+        ListGzipConfigsParams,
         "list_gzip_configs"
     );
     let headers_fut = count_dep!(
-        state, service_id, version,
-        list_header_objects, ListHeaderObjectsParams,
+        state,
+        service_id,
+        version,
+        list_header_objects,
+        ListHeaderObjectsParams,
         "list_header_objects"
     );
     let rate_limiters_fut = count_dep!(
-        state, service_id, version,
-        list_rate_limiters, ListRateLimitersParams,
+        state,
+        service_id,
+        version,
+        list_rate_limiters,
+        ListRateLimitersParams,
         "list_rate_limiters"
     );
     let request_settings_fut = count_dep!(
-        state, service_id, version,
-        list_request_settings, ListRequestSettingsParams,
+        state,
+        service_id,
+        version,
+        list_request_settings,
+        ListRequestSettingsParams,
         "list_request_settings"
     );
     let response_objects_fut = count_dep!(
-        state, service_id, version,
-        list_response_objects, ListResponseObjectsParams,
+        state,
+        service_id,
+        version,
+        list_response_objects,
+        ListResponseObjectsParams,
         "list_response_objects"
     );
     let snippets_fut = count_dep!(
-        state, service_id, version,
-        list_snippets, ListSnippetsParams,
+        state,
+        service_id,
+        version,
+        list_snippets,
+        ListSnippetsParams,
         "list_snippets"
     );
 

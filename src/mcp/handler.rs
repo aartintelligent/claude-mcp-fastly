@@ -11,7 +11,6 @@ use rmcp::{
     tool, tool_handler, tool_router,
 };
 
-
 use crate::app::AppState;
 use crate::mcp::tools;
 
@@ -49,12 +48,12 @@ impl Handler {
 
     /// Looks up the Compute ACL entry covering a given IP. Behavior lives
     /// in [`tools::find_resource_acl_entry::run`].
-    #[tool(description = "Find the Compute ACL entry (CIDR + action) that matches an IP, by `acl_id` and `ip` (single API call, no scan).")]
+    #[tool(
+        description = "Find the Compute ACL entry (CIDR + action) that matches an IP, by `acl_id` and `ip` (single API call, no scan)."
+    )]
     async fn find_resource_acl_entry(
         &self,
-        Parameters(args): Parameters<
-            tools::find_resource_acl_entry::FindResourceAclEntryArgs,
-        >,
+        Parameters(args): Parameters<tools::find_resource_acl_entry::FindResourceAclEntryArgs>,
     ) -> Result<CallToolResult, McpError> {
         tools::find_resource_acl_entry::run(&self.state, args).await
     }
@@ -62,7 +61,9 @@ impl Handler {
     /// Lists the Fastly account's Compute ACLs (catalog only — entries
     /// are not enumerated). Behavior lives in
     /// [`tools::list_resource_acls::run`].
-    #[tool(description = "List the Fastly account's Compute ACLs (catalog only — entries are not enumerated; use `find_resource_acl_entry` for IP lookup).")]
+    #[tool(
+        description = "List the Fastly account's Compute ACLs (catalog only — entries are not enumerated; use `find_resource_acl_entry` for IP lookup)."
+    )]
     async fn list_resource_acls(
         &self,
         Parameters(args): Parameters<tools::list_resource_acls::ListResourceAclsArgs>,
@@ -86,7 +87,9 @@ impl Handler {
     /// returned — read them one at a time with
     /// `get_resource_config_store_item_value`). Behavior lives in
     /// [`tools::list_resource_config_store_items::run`].
-    #[tool(description = "List the keys of a Fastly config store, by `config_store_id` (values not returned).")]
+    #[tool(
+        description = "List the keys of a Fastly config store, by `config_store_id` (values not returned)."
+    )]
     async fn list_resource_config_store_items(
         &self,
         Parameters(args): Parameters<
@@ -98,7 +101,9 @@ impl Handler {
 
     /// Fetches the value of a single key in a Fastly config store.
     /// Behavior lives in [`tools::get_resource_config_store_item_value::run`].
-    #[tool(description = "Get the value of a single key in a Fastly config store, by `config_store_id` and `key`.")]
+    #[tool(
+        description = "Get the value of a single key in a Fastly config store, by `config_store_id` and `key`."
+    )]
     async fn get_resource_config_store_item_value(
         &self,
         Parameters(args): Parameters<
@@ -113,9 +118,7 @@ impl Handler {
     #[tool(description = "List the Fastly account's KV stores (cursor-paginated).")]
     async fn list_resource_kv_stores(
         &self,
-        Parameters(args): Parameters<
-            tools::list_resource_kv_stores::ListResourceKvStoresArgs,
-        >,
+        Parameters(args): Parameters<tools::list_resource_kv_stores::ListResourceKvStoresArgs>,
     ) -> Result<CallToolResult, McpError> {
         tools::list_resource_kv_stores::run(&self.state, args).await
     }
@@ -123,7 +126,9 @@ impl Handler {
     /// Lists the keys of a single Fastly KV store (values are not
     /// returned — Fastly KV requires per-key reads). Behavior lives in
     /// [`tools::list_resource_kv_store_items::run`].
-    #[tool(description = "List the keys of a Fastly KV store, by `store_id` (cursor-paginated, values not returned).")]
+    #[tool(
+        description = "List the keys of a Fastly KV store, by `store_id` (cursor-paginated, values not returned)."
+    )]
     async fn list_resource_kv_store_items(
         &self,
         Parameters(args): Parameters<
@@ -135,7 +140,9 @@ impl Handler {
 
     /// Fetches the value of a single key in a Fastly KV store. Behavior
     /// lives in [`tools::get_resource_kv_store_item_value::run`].
-    #[tool(description = "Get the value of a single key in a Fastly KV store, by `store_id` and `key`.")]
+    #[tool(
+        description = "Get the value of a single key in a Fastly KV store, by `store_id` and `key`."
+    )]
     async fn get_resource_kv_store_item_value(
         &self,
         Parameters(args): Parameters<
@@ -160,7 +167,9 @@ impl Handler {
     /// Lists the secrets in a single Fastly secret store (names + opaque
     /// digests only — values are never exposed by the Fastly API).
     /// Behavior lives in [`tools::list_resource_secret_store_items::run`].
-    #[tool(description = "List the secrets of a Fastly secret store, by `store_id` (cursor-paginated, names + digests only — values are never returned by Fastly).")]
+    #[tool(
+        description = "List the secrets of a Fastly secret store, by `store_id` (cursor-paginated, names + digests only — values are never returned by Fastly)."
+    )]
     async fn list_resource_secret_store_items(
         &self,
         Parameters(args): Parameters<
@@ -172,9 +181,7 @@ impl Handler {
 
     /// Fetches a Fastly service by id. Behavior lives in
     /// [`tools::get_service::run`].
-    #[tool(
-        description = "Get a Fastly service's metadata and active version number."
-    )]
+    #[tool(description = "Get a Fastly service's metadata and active version number.")]
     async fn get_service(
         &self,
         Parameters(args): Parameters<tools::get_service::GetServiceArgs>,
@@ -215,7 +222,9 @@ impl Handler {
     /// Lists the account-scoped resources (KV / secret / config stores)
     /// linked to a specific Fastly service version. Behavior lives in
     /// [`tools::list_service_resources::run`].
-    #[tool(description = "List a Fastly service version's linked resources (KV / secret / config stores) — bridge to the account-scoped `list_resource_*` tools.")]
+    #[tool(
+        description = "List a Fastly service version's linked resources (KV / secret / config stores) — bridge to the account-scoped `list_resource_*` tools."
+    )]
     async fn list_service_resources(
         &self,
         Parameters(args): Parameters<tools::list_service_resources::ListServiceResourcesArgs>,
@@ -235,7 +244,9 @@ impl Handler {
 
     /// Lists the directors of a specific Fastly service version. Behavior
     /// lives in [`tools::list_service_directors::run`].
-    #[tool(description = "List a Fastly service version's directors (load-balancing groups of backends).")]
+    #[tool(
+        description = "List a Fastly service version's directors (load-balancing groups of backends)."
+    )]
     async fn list_service_directors(
         &self,
         Parameters(args): Parameters<tools::list_service_directors::ListServiceDirectorsArgs>,
@@ -246,19 +257,21 @@ impl Handler {
     /// Lists the edge dictionaries of a specific Fastly service version
     /// with their item count, digest, and last-updated timestamp. Behavior
     /// lives in [`tools::list_service_dictionaries::run`].
-    #[tool(description = "List a Fastly service version's edge dictionaries with their item count, digest, and last-updated timestamp.")]
+    #[tool(
+        description = "List a Fastly service version's edge dictionaries with their item count, digest, and last-updated timestamp."
+    )]
     async fn list_service_dictionaries(
         &self,
-        Parameters(args): Parameters<
-            tools::list_service_dictionaries::ListServiceDictionariesArgs,
-        >,
+        Parameters(args): Parameters<tools::list_service_dictionaries::ListServiceDictionariesArgs>,
     ) -> Result<CallToolResult, McpError> {
         tools::list_service_dictionaries::run(&self.state, args).await
     }
 
     /// Lists the key/value items of a single edge dictionary. Behavior
     /// lives in [`tools::list_service_dictionary_items::run`].
-    #[tool(description = "List the key/value items of a Fastly edge dictionary, by `service_id` and `dictionary_id`.")]
+    #[tool(
+        description = "List the key/value items of a Fastly edge dictionary, by `service_id` and `dictionary_id`."
+    )]
     async fn list_service_dictionary_items(
         &self,
         Parameters(args): Parameters<
@@ -306,7 +319,9 @@ impl Handler {
 
     /// Lists the conditions of a specific Fastly VCL service version.
     /// Behavior lives in [`tools::list_service_vcl_conditions::run`].
-    #[tool(description = "List a Fastly VCL service version's conditions (named VCL boolean expressions).")]
+    #[tool(
+        description = "List a Fastly VCL service version's conditions (named VCL boolean expressions)."
+    )]
     async fn list_service_vcl_conditions(
         &self,
         Parameters(args): Parameters<
@@ -328,7 +343,9 @@ impl Handler {
 
     /// Lists the header rules of a specific Fastly VCL service version.
     /// Behavior lives in [`tools::list_service_vcl_headers::run`].
-    #[tool(description = "List a Fastly VCL service version's header rules (set/append/delete/regex).")]
+    #[tool(
+        description = "List a Fastly VCL service version's header rules (set/append/delete/regex)."
+    )]
     async fn list_service_vcl_headers(
         &self,
         Parameters(args): Parameters<tools::list_service_vcl_headers::ListServiceVclHeadersArgs>,
@@ -363,7 +380,9 @@ impl Handler {
 
     /// Lists the response objects of a specific Fastly VCL service version.
     /// Behavior lives in [`tools::list_service_vcl_response_objects::run`].
-    #[tool(description = "List a Fastly VCL service version's response objects (canned HTTP responses).")]
+    #[tool(
+        description = "List a Fastly VCL service version's response objects (canned HTTP responses)."
+    )]
     async fn list_service_vcl_response_objects(
         &self,
         Parameters(args): Parameters<
@@ -375,12 +394,12 @@ impl Handler {
 
     /// Lists the VCL snippets of a specific Fastly VCL service version.
     /// Behavior lives in [`tools::list_service_vcl_snippets::run`].
-    #[tool(description = "List a Fastly VCL service version's VCL snippets (code injected into a specific request-lifecycle phase).")]
+    #[tool(
+        description = "List a Fastly VCL service version's VCL snippets (code injected into a specific request-lifecycle phase)."
+    )]
     async fn list_service_vcl_snippets(
         &self,
-        Parameters(args): Parameters<
-            tools::list_service_vcl_snippets::ListServiceVclSnippetsArgs,
-        >,
+        Parameters(args): Parameters<tools::list_service_vcl_snippets::ListServiceVclSnippetsArgs>,
     ) -> Result<CallToolResult, McpError> {
         tools::list_service_vcl_snippets::run(&self.state, args).await
     }
@@ -389,14 +408,10 @@ impl Handler {
 #[tool_handler]
 impl ServerHandler for Handler {
     fn get_info(&self) -> ServerInfo {
-        ServerInfo::new(
-            ServerCapabilities::builder()
-                .enable_tools()
-                .build(),
-        )
-        .with_server_info(Implementation::from_build_env())
-        .with_protocol_version(ProtocolVersion::V_2025_11_25)
-        .with_instructions(INSTRUCTIONS.to_string())
+        ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
+            .with_server_info(Implementation::from_build_env())
+            .with_protocol_version(ProtocolVersion::V_2025_11_25)
+            .with_instructions(INSTRUCTIONS.to_string())
     }
 }
 

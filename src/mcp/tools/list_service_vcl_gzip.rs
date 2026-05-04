@@ -107,7 +107,10 @@ pub async fn run(
         }
     };
 
-    let summaries: Vec<GzipSummary> = gzip_configs.iter().map(GzipSummary::from_response).collect();
+    let summaries: Vec<GzipSummary> = gzip_configs
+        .iter()
+        .map(GzipSummary::from_response)
+        .collect();
 
     Ok(CallToolResult::success(vec![Content::json(&summaries)?]))
 }

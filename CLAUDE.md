@@ -43,19 +43,21 @@ Two structs:
 `build_fastly_configuration` in `app.rs` is the only place that maps our `FastlyConfig` onto the SDK shape (`base_path`, `api_key`, defaults inherited via `..Default::default()`).
 
 ### MCP layer (`src/mcp/`)
-Surface is *tools only* — `prompts`, `resources`, and `tasks` are intentionally not exposed.
+Surface is **tools + prompts**. `resources` and `tasks` are intentionally not exposed.
 
 - `server.rs::router` mounts `StreamableHttpService` at `/mcp` using a `LocalSessionManager`. Idle session keep-alive is bumped from rmcp's 5-min default to **30 minutes** (`SESSION_KEEP_ALIVE`) to keep MCP Inspector usable during interactive debugging. A fresh `Handler` is constructed per session.
-- `handler.rs::Handler` is the single rmcp `ServerHandler` impl. Two macros coexist:
-  - `#[tool_router]` on the inherent impl — generates `Self::tool_router()` and per-tool dispatch from `#[tool(...)]` methods.
-  - `#[tool_handler]` on `impl ServerHandler` — wires `tools/list` + `tools/call`.
+- `handler.rs::Handler` is the single rmcp `ServerHandler` impl. Four macros coexist:
+  - `#[tool_router]` on an inherent impl — generates `Self::tool_router()` and per-tool dispatch from `#[tool(...)]` methods.
+  - `#[prompt_router]` on a *separate* inherent impl — generates `Self::prompt_router()` and per-prompt dispatch from `#[prompt(...)]` methods.
+  - `#[tool_handler]` and `#[prompt_handler]` *stacked* on the same `impl ServerHandler` block — wires `tools/list` + `tools/call` and `prompts/list` + `prompts/get` respectively. Stacking requires explicit `#[tool_handler]` / `#[prompt_handler]` attributes (not the unified `server_handler` shortcut).
   
-  The `tool_router` field is read by macro-generated code only (`#[allow(dead_code)]`). `get_info` advertises only `enable_tools()`; the protocol version is pinned to `V_2025_11_25`. `with_instructions(INSTRUCTIONS)` ships a server-level guidance string (defined as a `const` at the bottom of the file) that tells agents the workflow, the entry-point tools, and the multi-kind / VCL-only split.
-- `tools/` is the only routing surface. Each module exports:
+  Both router fields (`tool_router`, `prompt_router`) are read by macro-generated code only (`#[allow(dead_code)]`). `Handler::new` initializes both via `Self::tool_router()` + `Self::prompt_router()`. `get_info` advertises `enable_tools().enable_prompts()`; the protocol version is pinned to `V_2025_11_25`. `with_instructions(INSTRUCTIONS)` ships a terse server-level guidance string (defined as a `const` at the bottom of the file) that tells agents the workflow, the entry-point tools, and the multi-kind / VCL-only split. Long-form guidance lives in the `agent_system` prompt instead.
+- `tools/` is the routing surface for tools. Each module exports:
   - a public `Args` struct deriving `serde::Deserialize` + `schemars::JsonSchema`,
   - a public `async fn run(&AppState, Args) -> Result<CallToolResult, McpError>`.
   
   The `#[tool(...)]` method on `Handler` stays a thin adapter that just delegates to `run`.
+- `prompts/` is the routing surface for prompts. Each module exports a public `run` function returning `Result<Vec<PromptMessage>, McpError>` (the `Result` is required by rmcp's prompt-handler signature even when infallible). The `#[prompt(...)]` method on `Handler` is a thin adapter to `run`. The current single prompt is `agent_system`, which embeds its content from `prompts/agent_system.md` via `include_str!` so the canonical playbook is authored as Markdown, not as a Rust string literal. That same `.md` is the source of truth for the Claude Code subagent at `.claude/agents/fastly_specialist.md`, which is a thin wrapper that delegates to it.
 
 ### Errors (`src/error.rs`)
 All fallible code returns `crate::error::Result<T>`. `AppError` keeps three broad variants (`Io`, `Config`, `Other(anyhow::Error)`) with `#[error(transparent)]` so the originating error's `Display`/`source` chain is preserved. Use `?` with `anyhow::Error` for ad-hoc errors; promote a variant only when callers need to match on it.
@@ -79,7 +81,8 @@ All fallible code returns `crate::error::Result<T>`. `AppError` keeps three broa
 
 ## Conventions
 
-- **Adding a new tool:** create `src/mcp/tools/<name>.rs` with `Args` + `run`, register it in `src/mcp/tools/mod.rs`, then add a `#[tool(description = "…")]` method on `Handler` that delegates to `<name>::run`. If the tool covers a class of objects the agent will likely chain to, also update `INSTRUCTIONS` in `handler.rs` (under the right section: entry points / multi-kind / VCL-only) and add cross-references where relevant.
+- **Adding a new tool:** create `src/mcp/tools/<name>.rs` with `Args` + `run`, register it in `src/mcp/tools/mod.rs`, then add a `#[tool(description = "…")]` method on `Handler` that delegates to `<name>::run`. If the tool covers a class of objects the agent will likely chain to, also update `INSTRUCTIONS` in `handler.rs` (under the right section: entry points / multi-kind / VCL-only) and add cross-references where relevant. The long-form playbook lives in `src/mcp/prompts/agent_system.md` — update the relevant tool inventory section there too.
+- **Adding a new prompt:** create `src/mcp/prompts/<name>.rs` with a `run` function returning `Result<Vec<PromptMessage>, McpError>`, register it in `src/mcp/prompts/mod.rs`, then add a `#[prompt(name = "<name>", description = "…")]` method on `Handler` (inside the existing `#[prompt_router] impl Handler` block) that delegates to `<name>::run`. If the prompt content is more than a few lines, author it as a sibling `.md` file and include it via `include_str!`.
 - **Extending `Config`:** add a field to the relevant struct in `src/config.rs` and a default via `set_default(...)` in `Config::load` if there is a sensible one. Document the env-var form (`APP_<SECTION>__<FIELD>`) in `.env.dist`.
 - **Calling Fastly:** prefer the `fastly_api` SDK. Always do `let mut cfg = state.fastly_config();` per call (cheap). Only fall back to raw `reqwest` when the SDK is broken for a specific endpoint (currently only directors); document the fallback at the call site.
 - **Parallel Fastly calls:** `tokio::try_join!` for fixed sets, with one cloned `FastlyConfiguration` per future. The macro `count_dep!` in `get_service.rs` is the canonical pattern when chaining many `list_*` calls of the same shape.

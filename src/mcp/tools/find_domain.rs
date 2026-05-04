@@ -80,9 +80,7 @@ pub async fn run(state: &AppState, args: FindDomainArgs) -> Result<CallToolResul
         },
     )
     .await
-    .map_err(|e| {
-        McpError::internal_error(format!("Fastly list_dm_domains failed: {e}"), None)
-    })?;
+    .map_err(|e| McpError::internal_error(format!("Fastly list_dm_domains failed: {e}"), None))?;
 
     let domains = response.data.unwrap_or_default();
 

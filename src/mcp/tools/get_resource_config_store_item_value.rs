@@ -12,9 +12,7 @@
 //! and `deleted_at` (operational noise).
 
 use fastly_api::apis::Error;
-use fastly_api::apis::config_store_item_api::{
-    GetConfigStoreItemParams, get_config_store_item,
-};
+use fastly_api::apis::config_store_item_api::{GetConfigStoreItemParams, get_config_store_item};
 use rmcp::{
     ErrorData as McpError,
     model::{CallToolResult, Content},

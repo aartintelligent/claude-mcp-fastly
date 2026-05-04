@@ -8,9 +8,7 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use fastly_api::apis::configuration::{
-    ApiKey, Configuration as FastlyConfiguration,
-};
+use fastly_api::apis::configuration::{ApiKey, Configuration as FastlyConfiguration};
 
 use crate::config::{Config, FastlyConfig};
 

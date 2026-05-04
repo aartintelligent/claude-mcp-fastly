@@ -168,7 +168,8 @@ pub async fn run(
         }
     };
 
-    let summaries: Vec<BackendSummary> = backends.iter().map(BackendSummary::from_response).collect();
+    let summaries: Vec<BackendSummary> =
+        backends.iter().map(BackendSummary::from_response).collect();
 
     Ok(CallToolResult::success(vec![Content::json(&summaries)?]))
 }
