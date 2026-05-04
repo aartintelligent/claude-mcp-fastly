@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security advisory (private)
+    url: https://github.com/aartintelligent/claude-mcp-fastly/security/advisories/new
+    about: Report a security-sensitive issue privately — do not file it as a public bug.
+  - name: Fastly API reference
+    url: https://www.fastly.com/documentation/reference/api/
+    about: Upstream documentation for the Fastly endpoints this server maps to.
