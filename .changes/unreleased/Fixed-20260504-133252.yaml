@@ -1,3 +1,0 @@
-kind: Fixed
-body: Correct typo in Cargo.toml `keywords` (was `faslty`, now `fastly`) so the crate is discoverable by its primary domain keyword on crates.io.
-time: 2026-05-04T13:32:52.511750245+02:00
