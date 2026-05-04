@@ -47,6 +47,106 @@ impl Handler {
         tools::find_domain::run(&self.state, args).await
     }
 
+    /// Lists the Fastly account's config stores with item counts. Behavior
+    /// lives in [`tools::list_resource_config_stores::run`].
+    #[tool(description = "List the Fastly account's config stores with their item count.")]
+    async fn list_resource_config_stores(
+        &self,
+        Parameters(args): Parameters<
+            tools::list_resource_config_stores::ListResourceConfigStoresArgs,
+        >,
+    ) -> Result<CallToolResult, McpError> {
+        tools::list_resource_config_stores::run(&self.state, args).await
+    }
+
+    /// Lists the keys of a single Fastly config store (values are not
+    /// returned — read them one at a time with
+    /// `get_resource_config_store_item_value`). Behavior lives in
+    /// [`tools::list_resource_config_store_items::run`].
+    #[tool(description = "List the keys of a Fastly config store, by `config_store_id` (values not returned).")]
+    async fn list_resource_config_store_items(
+        &self,
+        Parameters(args): Parameters<
+            tools::list_resource_config_store_items::ListResourceConfigStoreItemsArgs,
+        >,
+    ) -> Result<CallToolResult, McpError> {
+        tools::list_resource_config_store_items::run(&self.state, args).await
+    }
+
+    /// Fetches the value of a single key in a Fastly config store.
+    /// Behavior lives in [`tools::get_resource_config_store_item_value::run`].
+    #[tool(description = "Get the value of a single key in a Fastly config store, by `config_store_id` and `key`.")]
+    async fn get_resource_config_store_item_value(
+        &self,
+        Parameters(args): Parameters<
+            tools::get_resource_config_store_item_value::GetResourceConfigStoreItemValueArgs,
+        >,
+    ) -> Result<CallToolResult, McpError> {
+        tools::get_resource_config_store_item_value::run(&self.state, args).await
+    }
+
+    /// Lists the Fastly account's KV stores. Behavior lives in
+    /// [`tools::list_resource_kv_stores::run`].
+    #[tool(description = "List the Fastly account's KV stores (cursor-paginated).")]
+    async fn list_resource_kv_stores(
+        &self,
+        Parameters(args): Parameters<
+            tools::list_resource_kv_stores::ListResourceKvStoresArgs,
+        >,
+    ) -> Result<CallToolResult, McpError> {
+        tools::list_resource_kv_stores::run(&self.state, args).await
+    }
+
+    /// Lists the keys of a single Fastly KV store (values are not
+    /// returned — Fastly KV requires per-key reads). Behavior lives in
+    /// [`tools::list_resource_kv_store_items::run`].
+    #[tool(description = "List the keys of a Fastly KV store, by `store_id` (cursor-paginated, values not returned).")]
+    async fn list_resource_kv_store_items(
+        &self,
+        Parameters(args): Parameters<
+            tools::list_resource_kv_store_items::ListResourceKvStoreItemsArgs,
+        >,
+    ) -> Result<CallToolResult, McpError> {
+        tools::list_resource_kv_store_items::run(&self.state, args).await
+    }
+
+    /// Fetches the value of a single key in a Fastly KV store. Behavior
+    /// lives in [`tools::get_resource_kv_store_item_value::run`].
+    #[tool(description = "Get the value of a single key in a Fastly KV store, by `store_id` and `key`.")]
+    async fn get_resource_kv_store_item_value(
+        &self,
+        Parameters(args): Parameters<
+            tools::get_resource_kv_store_item_value::GetResourceKvStoreItemValueArgs,
+        >,
+    ) -> Result<CallToolResult, McpError> {
+        tools::get_resource_kv_store_item_value::run(&self.state, args).await
+    }
+
+    /// Lists the Fastly account's secret stores. Behavior lives in
+    /// [`tools::list_resource_secret_stores::run`].
+    #[tool(description = "List the Fastly account's secret stores (cursor-paginated).")]
+    async fn list_resource_secret_stores(
+        &self,
+        Parameters(args): Parameters<
+            tools::list_resource_secret_stores::ListResourceSecretStoresArgs,
+        >,
+    ) -> Result<CallToolResult, McpError> {
+        tools::list_resource_secret_stores::run(&self.state, args).await
+    }
+
+    /// Lists the secrets in a single Fastly secret store (names + opaque
+    /// digests only — values are never exposed by the Fastly API).
+    /// Behavior lives in [`tools::list_resource_secret_store_items::run`].
+    #[tool(description = "List the secrets of a Fastly secret store, by `store_id` (cursor-paginated, names + digests only — values are never returned by Fastly).")]
+    async fn list_resource_secret_store_items(
+        &self,
+        Parameters(args): Parameters<
+            tools::list_resource_secret_store_items::ListResourceSecretStoreItemsArgs,
+        >,
+    ) -> Result<CallToolResult, McpError> {
+        tools::list_resource_secret_store_items::run(&self.state, args).await
+    }
+
     /// Fetches a Fastly service by id. Behavior lives in
     /// [`tools::get_service::run`].
     #[tool(
@@ -301,6 +401,20 @@ Locked historical versions and post-rollback artifacts are filtered out.
 Use it to inspect in-flight work that hasn't been deployed yet —
 typically when the agent needs to reason about pending changes or compare a draft against the live config.
 
+Account-scoped resources (no `service_id` or `version` argument):
+
+`list_resource_config_stores` enumerates the Fastly account's config stores, each enriched with its current `item_count`.
+Config stores live outside any single service version — they can be linked to several services and edited out-of-band of the versioned config.
+The optional `name` parameter forwards an exact-name filter to Fastly to retrieve a single store.
+
+`list_resource_kv_stores` enumerates the Fastly account's KV stores. KV stores are designed for high-volume key/value storage and have no `item_count` info endpoint — only identity + timestamps are surfaced.
+Pagination is cursor-based: pass `next_cursor` from a previous response back as `cursor` to retrieve the next page.
+
+`list_resource_secret_stores` enumerates the Fastly account's secret stores. Secret stores hold credentials and other sensitive material that VCL/Compute services consume only at runtime; \
+their values are never returned by the Fastly API — by design — so there is no `get_resource_secret_store_item_value` tool. \
+Listing the secrets in a store via `list_resource_secret_store_items` exposes only the secret `name`, an opaque `digest` (useful to detect rotations), and `created_at`. \
+Pagination is cursor-based.
+
 Once a `(service_id, version)` pair is in hand, pass it to one of:
 
 Multi-kind (works on every service):
@@ -329,6 +443,15 @@ Cross-references between tools:
 - A director's `backends` array contains the `name`s of `list_service_backends` entries.
 - A dictionary's `id` returned by `list_service_dictionaries` is the input for \
   `list_service_dictionary_items` to fetch its key/value entries (write-only dictionaries refuse this read).
+- A config store's `id` returned by `list_resource_config_stores` is the input for \
+  `list_resource_config_store_items` to fetch its keys (values are NOT returned). \
+  Each key returned can then be passed to `get_resource_config_store_item_value` to read its actual value.
+- A KV store's `id` returned by `list_resource_kv_stores` is the input for `list_resource_kv_store_items` \
+  to fetch its keys (values are NOT returned — Fastly KV requires per-key reads). \
+  Each key returned can then be passed to `get_resource_kv_store_item_value` to read its actual value.
+- A secret store's `id` returned by `list_resource_secret_stores` is the input for `list_resource_secret_store_items` \
+  to enumerate the secrets it holds (name + opaque digest + creation timestamp). \
+  There is intentionally no per-secret value tool: the Fastly API never exposes secret values — they are reachable only at runtime from VCL or Compute.
 - Cache settings, headers, request/response settings, and rate limiters reference VCL conditions \
   by `name` via their `*_condition` fields — chain with `list_service_vcl_conditions`.\
 ";

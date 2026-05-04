@@ -15,7 +15,15 @@
 
 pub mod find_domain;
 pub mod get_service;
+pub mod get_resource_config_store_item_value;
+pub mod get_resource_kv_store_item_value;
 pub mod get_service_package;
+pub mod list_resource_config_store_items;
+pub mod list_resource_config_stores;
+pub mod list_resource_kv_store_items;
+pub mod list_resource_kv_stores;
+pub mod list_resource_secret_store_items;
+pub mod list_resource_secret_stores;
 pub mod list_service_backends;
 pub mod list_service_dictionaries;
 pub mod list_service_dictionary_items;
