@@ -110,9 +110,9 @@ impl Handler {
     }
 
     /// Lists the edge dictionaries of a specific Fastly service version
-    /// together with their key/value items. Behavior lives in
-    /// [`tools::list_service_dictionaries::run`].
-    #[tool(description = "List a Fastly service version's edge dictionaries with their key/value items.")]
+    /// with their item count, digest, and last-updated timestamp. Behavior
+    /// lives in [`tools::list_service_dictionaries::run`].
+    #[tool(description = "List a Fastly service version's edge dictionaries with their item count, digest, and last-updated timestamp.")]
     async fn list_service_dictionaries(
         &self,
         Parameters(args): Parameters<
@@ -120,6 +120,18 @@ impl Handler {
         >,
     ) -> Result<CallToolResult, McpError> {
         tools::list_service_dictionaries::run(&self.state, args).await
+    }
+
+    /// Lists the key/value items of a single edge dictionary. Behavior
+    /// lives in [`tools::list_service_dictionary_items::run`].
+    #[tool(description = "List the key/value items of a Fastly edge dictionary, by `service_id` and `dictionary_id`.")]
+    async fn list_service_dictionary_items(
+        &self,
+        Parameters(args): Parameters<
+            tools::list_service_dictionary_items::ListServiceDictionaryItemsArgs,
+        >,
+    ) -> Result<CallToolResult, McpError> {
+        tools::list_service_dictionary_items::run(&self.state, args).await
     }
 
     /// Lists a Fastly service's open draft versions sitting above the
@@ -293,7 +305,7 @@ Once a `(service_id, version)` pair is in hand, pass it to one of:
 
 Multi-kind (works on every service):
 - `list_service_backends` — origin backends
-- `list_service_dictionaries` — edge dictionaries with their key/value items
+- `list_service_dictionaries` — edge dictionaries with their item count, digest, and last-updated timestamp
 - `list_service_directors` — load-balancing groups of backends
 - `list_service_domains` — domains routed to this version
 - `list_service_healthchecks` — health probes
@@ -315,6 +327,8 @@ VCL-only (require `type: \"vcl\"`):
 Cross-references between tools:
 - A backend's `healthcheck` field is the `name` of a `list_service_healthchecks` entry.
 - A director's `backends` array contains the `name`s of `list_service_backends` entries.
+- A dictionary's `id` returned by `list_service_dictionaries` is the input for \
+  `list_service_dictionary_items` to fetch its key/value entries (write-only dictionaries refuse this read).
 - Cache settings, headers, request/response settings, and rate limiters reference VCL conditions \
   by `name` via their `*_condition` fields — chain with `list_service_vcl_conditions`.\
 ";

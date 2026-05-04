@@ -18,6 +18,7 @@ pub mod get_service;
 pub mod get_service_package;
 pub mod list_service_backends;
 pub mod list_service_dictionaries;
+pub mod list_service_dictionary_items;
 pub mod list_service_directors;
 pub mod list_service_domains;
 pub mod list_service_healthchecks;
