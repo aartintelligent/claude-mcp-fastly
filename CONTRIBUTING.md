@@ -87,34 +87,32 @@ If the tool wraps an SDK endpoint that is broken upstream (the `list_directors` 
 - `README.md` is the shop window and the public catalog of tools; update the tool table, the five-group list, the cross-references, and the per-tool details when you change behaviour.
 - `CLAUDE.md` captures project-local context for AI-assisted editing; keep it in sync if you change conventions or tooling.
 
-## Changelog
+## Changelog and releases
 
-Changelog entries are authored with [Changie](https://github.com/miniscruff/changie):
+Releases are driven by [release-please](https://github.com/googleapis/release-please) — the **commit message is the changelog entry**, there is no separate fragment to author. release-please reads the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) since the last release, computes the next semver, and maintains a single long-lived "Release PR" titled `chore(release): X.Y.Z`. When the maintainer merges that PR, the tag, the GitHub Release and the Docker image (`aartintelligent/claude-mcp-fastly:X.Y.Z` + `:latest`) are published automatically. Do **not** edit `CHANGELOG.md` directly — release-please owns it. Configuration lives in `release-please-config.json` and `.release-please-manifest.json`.
 
-```bash
-changie new
-```
+Pick the right Conventional Commit type:
 
-This drops a fragment under `.changes/unreleased/`. Commit the fragment with your change. Do **not** edit `CHANGELOG.md` directly — it is regenerated at release time via `changie batch <version>` + `changie merge`.
+| Type       | Changelog section | Bumps   | Use for                                            |
+| ---------- | ----------------- | ------- | -------------------------------------------------- |
+| `feat`     | Added             | minor   | New tool, new entry point, new config knob         |
+| `fix`      | Fixed             | patch   | Bug fixes that do not change the public contract   |
+| `perf`     | Performance       | patch   | Performance improvement (no API change)            |
+| `revert`   | Reverted          | patch   | Revert of a prior commit                           |
+| `refactor` / `docs` / `test` / `chore` / `ci` / `build` / `style` | (hidden) | — | Internal changes, no user-visible effect |
 
-Pick the right kind (matches `.changie.yaml`):
+Breaking changes — indicated either by the `!` suffix (`feat!:`, `fix!:`) or by a `BREAKING CHANGE:` footer — bump major. Until the project ships `1.0.0`, the config keeps breaking changes at minor (`bump-minor-pre-major`) and `feat` at patch (`bump-patch-for-minor-pre-major`), per pre-1.0 SemVer convention.
 
-| Kind         | Bumps    | Use for                                           |
-| ------------ | -------- | ------------------------------------------------- |
-| `Added`      | minor    | New tool, new entry point, new config knob        |
-| `Changed`    | major    | Breaking change to a tool's args or output shape  |
-| `Deprecated` | minor    | Tool or arg marked for removal but still works    |
-| `Removed`    | major    | Tool deletion, arg deletion                       |
-| `Fixed`      | patch    | Bug fixes that do not change the public contract  |
-| `Security`   | patch    | Token-handling, transport, or leakage fixes       |
+For security-sensitive fixes (token-handling, transport, leakage paths), use `fix(security):` — the scope makes the intent searchable in git history; the entry still files under `Fixed`.
 
 ## Commit and pull-request etiquette
 
+- **Conventional Commits format is mandatory.** PR titles are squash-merged onto `master` verbatim, and that's what release-please reads — a non-conformant title silently makes the change invisible to the changelog.
 - **One logical change per PR.** Small PRs land faster and review more carefully.
-- **Write commit messages in the imperative** (`Add …`, `Fix …`, `Refactor …`) and keep the subject under 70 characters. The body is the place for the *why*, not the *what*.
-- **Rebase, don't merge**, when syncing with `master`. The history stays linear.
+- **Write commit subjects in the imperative** (`Add …`, `Fix …`, `Refactor …`) and keep them under 70 characters. The body is the place for the *why*, not the *what*. The body is also where `BREAKING CHANGE:` footers go.
+- **Rebase, don't merge**, when syncing your branch with `master`. The feature-branch history stays linear.
 - **Mention the issue number** in the PR description when one exists.
-- **CI must be green** before review (when CI is wired). If a flaky test bites you, file an issue rather than re-running until it passes.
+- **CI must be green** before review. If a flaky test bites you, file an issue rather than re-running until it passes.
 
 ## License
 
