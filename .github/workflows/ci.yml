@@ -1,0 +1,73 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  CI — the same gates the local pre-commit checks run, enforced on every PR
+#  and on every push to `master`.
+# ─────────────────────────────────────────────────────────────────────────────
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+# Cancel in-flight runs for the same ref when a new push supersedes them.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+  RUSTDOCFLAGS: -D warnings
+
+jobs:
+  fmt:
+    name: rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all -- --check
+
+  clippy:
+    name: clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo clippy --all-targets --locked -- -D warnings
+
+  docs:
+    name: rustdoc
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # `--no-deps` keeps the build fast; `RUSTDOCFLAGS: -D warnings` (above)
+      # fails the job on broken intra-doc links or missing items.
+      - run: cargo doc --no-deps --locked
+
+  test:
+    name: test (${{ matrix.toolchain }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Stable proves we keep up with the latest compiler; the MSRV pin
+        # proves we do not accidentally rely on features newer than the
+        # `rust-version` declared in `Cargo.toml`.
+        toolchain: [stable, "1.95"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.toolchain }}
+      - run: cargo test --locked

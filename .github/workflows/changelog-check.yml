@@ -1,0 +1,67 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  changelog-check — guarantees every PR either adds a Changie fragment
+#  under `.changes/unreleased/*.yaml`, carries the `skip-changelog` label,
+#  or only touches non-code paths (docs, CI config, license, …).
+# ─────────────────────────────────────────────────────────────────────────────
+name: changelog-check
+
+on:
+  pull_request:
+    # `labeled`/`unlabeled` rerun the check when the skip label is toggled.
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+concurrency:
+  group: changelog-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: require changelog fragment
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect `skip-changelog` label
+        id: label
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          labels=$(gh pr view "${{ github.event.pull_request.number }}" \
+            --json labels -q '.labels[].name')
+          if grep -qx "skip-changelog" <<< "$labels"; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Skipping — label 'skip-changelog' is present."
+          fi
+
+      - name: Detect docs-only / meta-only diff
+        id: paths
+        if: steps.label.outputs.skip != 'true'
+        run: |
+          base="origin/${{ github.event.pull_request.base.ref }}"
+          git fetch --no-tags --depth=1 origin "${{ github.event.pull_request.base.ref }}"
+          changed=$(git diff --name-only "$base"...HEAD)
+          # Anything outside docs/CI/licence is a "real" change.
+          real=$(grep -vE '^(\.github/|.*\.md$|LICENSE$|docs/)' <<< "$changed" || true)
+          if [[ -z "$real" ]]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Skipping — diff only touches docs / CI / licence."
+          fi
+
+      - name: Require a new fragment under .changes/unreleased/
+        if: steps.label.outputs.skip != 'true' && steps.paths.outputs.skip != 'true'
+        run: |
+          base="origin/${{ github.event.pull_request.base.ref }}"
+          added=$(git diff --name-only --diff-filter=A "$base"...HEAD \
+                  | grep -E '^\.changes/unreleased/.*\.yaml$' || true)
+          if [[ -z "$added" ]]; then
+            echo "::error::No changelog fragment found under .changes/unreleased/*.yaml"
+            echo "::error::Run 'changie new' to add one, or add the 'skip-changelog' label."
+            exit 1
+          fi
+          echo "Found new fragment(s):"
+          echo "$added"
