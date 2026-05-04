@@ -1,0 +1,117 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  release — triggered by pushing a version tag `vX.Y.Z`.
+#
+#  Expected release flow (run locally on master before pushing the tag):
+#    1.  `cargo set-version <X.Y.Z>`  (or hand-edit `Cargo.toml`).
+#    2.  `changie batch <X.Y.Z>`     — moves fragments from
+#                                       `.changes/unreleased/*.yaml` into
+#                                       `.changes/<X.Y.Z>.md`.
+#    3.  `changie merge`             — rebuilds top-level `CHANGELOG.md`.
+#    4.  Commit + push the three changes to `master`. If you go through a
+#        PR, apply the `skip-changelog` label: a release-prep commit
+#        removes fragments from `.changes/unreleased/` (instead of adding
+#        one), so the changelog-check workflow would otherwise reject it.
+#    5.  `git tag vX.Y.Z && git push origin vX.Y.Z`  — triggers this
+#        workflow.
+#
+#  The workflow is side-effect-only on publication: it does not mutate
+#  the repo. Any "preparation" belongs on `master` before tagging.
+#
+#  Required secrets (Settings → Secrets and variables → Actions):
+#    - DOCKERHUB_USERNAME — Docker Hub login (e.g. `aartintelligent`)
+#    - DOCKERHUB_TOKEN    — Docker Hub Personal Access Token with
+#                            `Read, Write, Delete` scope on the image
+#                            repository `aartintelligent/claude-mcp-fastly`.
+# ─────────────────────────────────────────────────────────────────────────────
+name: release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write # needed by `gh release create`
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+  IMAGE: aartintelligent/claude-mcp-fastly
+
+jobs:
+  release:
+    name: publish ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Compute version (strip leading `v`)
+        id: ver
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Version: $version"
+
+      - name: Verify tag matches Cargo.toml version
+        run: |
+          version="${{ steps.ver.outputs.version }}"
+          cargo_ver=$(awk -F'"' '/^version[[:space:]]*=/ { print $2; exit }' Cargo.toml)
+          if [[ "$version" != "$cargo_ver" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match Cargo.toml version $cargo_ver"
+            echo "::error::Run 'cargo set-version $version' (or edit Cargo.toml) before tagging."
+            exit 1
+          fi
+          echo "Version confirmed: $cargo_ver"
+
+      - name: Verify Changie batch file exists for this version
+        run: |
+          version="${{ steps.ver.outputs.version }}"
+          if [[ ! -f ".changes/$version.md" ]]; then
+            echo "::error::Missing .changes/$version.md"
+            echo "::error::Run 'changie batch $version' and 'changie merge' on master before tagging."
+            exit 1
+          fi
+          echo "Release notes for $version:"
+          cat ".changes/$version.md"
+
+      - name: Re-run the local gates
+        # Belt and braces: PR-time CI already ran these, but tags can be
+        # pushed from any branch and we want certainty before publishing.
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy --all-targets --locked -- -D warnings
+          cargo test --locked
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
+          push: true
+          pull: true # pull fresh DHI base images at every release
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.ver.outputs.version }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file ".changes/${{ steps.ver.outputs.version }}.md"
