@@ -59,6 +59,16 @@ impl Handler {
         tools::get_service::run(&self.state, args).await
     }
 
+    /// Fetches the Compute (wasm) package metadata for a service version.
+    /// Behavior lives in [`tools::get_service_package::run`].
+    #[tool(description = "Get a Fastly Compute (wasm) service version's package metadata.")]
+    async fn get_service_package(
+        &self,
+        Parameters(args): Parameters<tools::get_service_package::GetServicePackageArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        tools::get_service_package::run(&self.state, args).await
+    }
+
     /// Lists the backends of a specific Fastly service version. Behavior
     /// lives in [`tools::list_service_backends::run`].
     #[tool(description = "List a Fastly service version's origin backends.")]
@@ -287,6 +297,9 @@ Multi-kind (works on every service):
 - `list_service_directors` — load-balancing groups of backends
 - `list_service_domains` — domains routed to this version
 - `list_service_healthchecks` — health probes
+
+Compute-only (require `type: \"wasm\"`):
+- `get_service_package` — Compute package metadata (name, language, files_hash, …)
 
 VCL-only (require `type: \"vcl\"`):
 - `list_service_vcl_apex_redirects` — apex-domain redirects
