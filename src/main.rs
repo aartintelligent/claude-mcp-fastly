@@ -10,8 +10,9 @@
 //! sources overriding earlier ones:
 //!
 //! 1. Built-in defaults (`127.0.0.1:8000`).
-//! 2. `/etc/claude-rust-specialist/config.json` if present (typically a
-//!    Docker volume or package install).
+//! 2. `/etc/<PROJECT_NAME>/config.json` if present (resolved from
+//!    `CARGO_PKG_NAME`, currently `claude-mcp-fastly` — typically a Docker
+//!    volume or package install).
 //! 3. A `.env` file in the working directory, loaded by `dotenvy::dotenv`.
 //! 4. Process environment variables prefixed by `APP_`, with `__` separating
 //!    nested fields (e.g. `APP_SERVER__HOST=0.0.0.0`).
@@ -27,37 +28,29 @@ mod app;
 mod config;
 mod error;
 mod mcp;
+mod shutdown;
+mod telemetry;
 
 use std::net::SocketAddr;
 
 use axum::Router;
 use tokio_util::sync::CancellationToken;
-use tracing_subscriber::{EnvFilter, fmt};
 
 /// Process entry point.
 ///
-/// Sets up the Tokio runtime via [`tokio::main`], dispatches to [`run`], and
-/// translates a returned error into a non-zero exit code.
-#[tokio::main]
-async fn main() {
-    if let Err(err) = run().await {
-        eprintln!("error: {err:?}");
-        std::process::exit(1);
-    }
-}
-
-/// Application bootstrap.
-///
 /// Initializes the global tracing subscriber, loads the [`config::Config`],
 /// constructs the shared [`app::AppState`], composes the HTTP router, and
-/// hands it to [`serve`].
+/// hands it to [`serve`]. A returned error is printed by the standard
+/// library's main-error handler and yields a non-zero exit code.
 ///
 /// # Errors
 ///
-/// Returns an error if configuration loading fails, the listener cannot bind
-/// to the configured address, or the server terminates abnormally.
-async fn run() -> error::Result<()> {
-    init_tracing();
+/// Returns an error if tracing initialization fails, configuration loading
+/// fails, the listener cannot bind to the configured address, or the server
+/// terminates abnormally.
+#[tokio::main]
+async fn main() -> error::Result<()> {
+    telemetry::init()?;
 
     let config = config::Config::load()?;
 
@@ -103,49 +96,8 @@ async fn serve(router: Router, addr: SocketAddr, ct: CancellationToken) -> error
     tracing::info!(addr = %actual, "server listening");
 
     axum::serve(listener, router)
-        .with_graceful_shutdown(shutdown_signal(ct))
+        .with_graceful_shutdown(shutdown::wait(ct))
         .await?;
 
     Ok(())
-}
-
-/// Awaits the first incoming shutdown signal, then cancels `ct`.
-///
-/// Listens to `SIGINT` on every platform and to `SIGTERM` on Unix targets.
-/// On non-Unix platforms the SIGTERM branch resolves to a future that never
-/// completes, so only Ctrl-C will fire.
-async fn shutdown_signal(ct: CancellationToken) {
-    let ctrl_c = async {
-        let _ = tokio::signal::ctrl_c().await;
-    };
-
-    #[cfg(unix)]
-    let terminate = async {
-        if let Ok(mut sig) =
-            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-        {
-            sig.recv().await;
-        }
-    };
-
-    #[cfg(not(unix))]
-    let terminate = std::future::pending::<()>();
-
-    tokio::select! {
-        () = ctrl_c => {},
-        () = terminate => {},
-    }
-
-    tracing::info!("shutdown signal received");
-    ct.cancel();
-}
-
-/// Installs the global tracing subscriber.
-///
-/// Filter directives are read from the `RUST_LOG` environment variable and
-/// fall back to `info` when unset. Calling this more than once is a no-op:
-/// `try_init` silently ignores the second registration.
-fn init_tracing() {
-    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
-    let _ = fmt().with_env_filter(filter).try_init();
 }
