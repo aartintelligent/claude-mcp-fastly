@@ -24,7 +24,7 @@ use crate::mcp::handler::Handler;
 /// `keep alive timeout` errors when leaving the MCP Inspector open without
 /// activity. 30 minutes is more forgiving for interactive use without
 /// retaining truly abandoned sessions indefinitely.
-const SESSION_KEEP_ALIVE: Duration = Duration::from_secs(30 * 60);
+const SESSION_KEEP_ALIVE: Duration = Duration::from_mins(30);
 
 /// Builds the `Router<AppState>` that serves the MCP endpoint at `/mcp`.
 ///
@@ -32,7 +32,7 @@ const SESSION_KEEP_ALIVE: Duration = Duration::from_secs(30 * 60);
 /// closure. The supplied [`CancellationToken`] is forwarded to the
 /// [`StreamableHttpServerConfig`] so the transport interrupts in-flight
 /// streams as soon as the host application initiates shutdown.
-pub fn router(state: AppState, ct: CancellationToken) -> Router<AppState> {
+pub fn router(state: &AppState, ct: CancellationToken) -> Router<AppState> {
     let mcp_state = state.clone();
 
     let mut session_manager = LocalSessionManager::default();

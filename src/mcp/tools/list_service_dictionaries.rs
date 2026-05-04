@@ -125,7 +125,7 @@ pub async fn run(
     // their counts even though `list_dictionary_items` would refuse them.
     let mut info_by_id: HashMap<String, DictionaryInfoResponse> = HashMap::new();
     for d in &dictionaries {
-        let Some(did) = d.id.as_deref().map(String::clone) else {
+        let Some(did) = d.id.as_deref().cloned() else {
             continue;
         };
 

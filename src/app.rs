@@ -80,7 +80,7 @@ impl AppState {
 /// [`crate::config::Config::load`] so callers don't have to set it).
 /// `..Default::default()` reuses the upstream defaults for fields we do not
 /// expose (user agent, rate-limit counters, the freshly-allocated
-/// `reqwest::Client`). The api_key field is always overridden, so the
+/// `reqwest::Client`). The `api_key` field is always overridden, so the
 /// upstream `FASTLY_API_TOKEN` env-var fallback baked into the default impl
 /// is never observed in practice.
 fn build_fastly_configuration(cfg: &FastlyConfig) -> FastlyConfiguration {

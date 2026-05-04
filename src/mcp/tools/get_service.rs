@@ -212,6 +212,12 @@ impl<'a> ServiceSummary<'a> {
 /// Each batch runs concurrently under `tokio::try_join!`, so the total
 /// wall-clock latency is bounded by the slowest single call per batch
 /// rather than by their sum.
+//
+// The body is a flat list of `count_dep!` lines stitched into two
+// `tokio::try_join!` macros. Splitting it would only obscure the
+// "one line per Fastly resource type" structure that makes the function
+// readable in the first place.
+#[allow(clippy::too_many_lines)]
 async fn fetch_dependencies(
     state: &AppState,
     service_id: &str,

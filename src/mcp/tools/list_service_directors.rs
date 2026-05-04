@@ -11,7 +11,7 @@
 //!
 //! # Why this file holds raw HTTP plumbing
 //!
-//! The `fastly_api` Rust SDK auto-generated from Fastly's OpenAPI spec
+//! The `fastly_api` Rust SDK auto-generated from Fastly's `OpenAPI` spec
 //! mismodels the directors response. Specifically:
 //!
 //! ```text
@@ -232,14 +232,11 @@ pub async fn run(
     state: &AppState,
     args: ListServiceDirectorsArgs,
 ) -> Result<CallToolResult, McpError> {
-    let directors = match fetch_directors_raw(state, &args.service_id, args.version).await? {
-        Some(d) => d,
-        None => {
-            return Ok(CallToolResult::success(vec![Content::text(format!(
-                "No directors found — service `{}` version `{}` does not exist.",
-                args.service_id, args.version
-            ))]));
-        }
+    let Some(directors) = fetch_directors_raw(state, &args.service_id, args.version).await? else {
+        return Ok(CallToolResult::success(vec![Content::text(format!(
+            "No directors found — service `{}` version `{}` does not exist.",
+            args.service_id, args.version
+        ))]));
     };
 
     let summaries: Vec<DirectorSummary> = directors.iter().map(DirectorSummary::from_raw).collect();

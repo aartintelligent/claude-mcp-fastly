@@ -80,7 +80,7 @@ async fn run() -> error::Result<()> {
 /// the shared state in one place.
 fn build_router(state: app::AppState, ct: CancellationToken) -> Router {
     Router::new()
-        .merge(mcp::router(state.clone(), ct))
+        .merge(mcp::router(&state, ct))
         .with_state(state)
 }
 
