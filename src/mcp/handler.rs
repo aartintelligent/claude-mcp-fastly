@@ -47,6 +47,29 @@ impl Handler {
         tools::find_domain::run(&self.state, args).await
     }
 
+    /// Looks up the Compute ACL entry covering a given IP. Behavior lives
+    /// in [`tools::find_resource_acl_entry::run`].
+    #[tool(description = "Find the Compute ACL entry (CIDR + action) that matches an IP, by `acl_id` and `ip` (single API call, no scan).")]
+    async fn find_resource_acl_entry(
+        &self,
+        Parameters(args): Parameters<
+            tools::find_resource_acl_entry::FindResourceAclEntryArgs,
+        >,
+    ) -> Result<CallToolResult, McpError> {
+        tools::find_resource_acl_entry::run(&self.state, args).await
+    }
+
+    /// Lists the Fastly account's Compute ACLs (catalog only — entries
+    /// are not enumerated). Behavior lives in
+    /// [`tools::list_resource_acls::run`].
+    #[tool(description = "List the Fastly account's Compute ACLs (catalog only — entries are not enumerated; use `find_resource_acl_entry` for IP lookup).")]
+    async fn list_resource_acls(
+        &self,
+        Parameters(args): Parameters<tools::list_resource_acls::ListResourceAclsArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        tools::list_resource_acls::run(&self.state, args).await
+    }
+
     /// Lists the Fastly account's config stores with item counts. Behavior
     /// lives in [`tools::list_resource_config_stores::run`].
     #[tool(description = "List the Fastly account's config stores with their item count.")]
@@ -187,6 +210,17 @@ impl Handler {
         Parameters(args): Parameters<tools::list_service_healthchecks::ListServiceHealthchecksArgs>,
     ) -> Result<CallToolResult, McpError> {
         tools::list_service_healthchecks::run(&self.state, args).await
+    }
+
+    /// Lists the account-scoped resources (KV / secret / config stores)
+    /// linked to a specific Fastly service version. Behavior lives in
+    /// [`tools::list_service_resources::run`].
+    #[tool(description = "List a Fastly service version's linked resources (KV / secret / config stores) — bridge to the account-scoped `list_resource_*` tools.")]
+    async fn list_service_resources(
+        &self,
+        Parameters(args): Parameters<tools::list_service_resources::ListServiceResourcesArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        tools::list_service_resources::run(&self.state, args).await
     }
 
     /// Lists the domains of a specific Fastly service version. Behavior
@@ -373,85 +407,37 @@ impl ServerHandler for Handler {
 /// for cross-cutting hints: scope, freshness model, typical workflow, and
 /// boundary behavior shared by every tool.
 const INSTRUCTIONS: &str = "\
-Read-only inspection of a Fastly account's service configuration.
+Read-only inspection of a Fastly account.
 
-Each Fastly service has multiple versions; exactly one is active at any time, and active versions are immutable. \
-The `list_service_*` tools all take `(service_id, version)` and return a deterministic snapshot — \
-two calls with identical arguments yield identical results.
+Services have multiple versions; exactly one is active at a time and active versions are immutable. \
+Version-scoped tools (`list_service_*`) take `(service_id, version)` and return deterministic snapshots — \
+two calls with identical arguments yield identical results. Account-scoped tools (`list_resource_*`, `find_resource_*`) take no `service_id` / `version`.
 
-Entry points (no `version` argument):
+Entry points (no version):
+- `find_domain` — FQDN → service_id (Domain Management v1; `fqdn_match` controls match strategy, default permissive).
+- `get_service` — metadata, active `version`, and a `dependencies` count map for triage.
+- `list_service_versions` — active version + open drafts above it (locked history filtered out).
 
-`find_domain` looks up a domain in the account's Domain Management v1 catalog by FQDN.
-Returns the domain id, FQDN, associated `service_id` (when bound), and TLS activation/verification flags.
-Use it when you only know a hostname and need to discover which service serves it.
-The optional `fqdn_match` parameter controls how Fastly compares the input —
-accepted values: `\"exact\"`, `\"contains\"`, `\"begins_with\"`, `\"ends_with\"`.
-Without it, Fastly applies a permissive default that may also return sub-domains
-(e.g. a query for `example.com` may also surface `sub.example.com`).
+Account-scoped resources:
+- Config stores: `list_resource_config_stores` → `list_resource_config_store_items` (keys) → `get_resource_config_store_item_value`.
+- KV stores (cursor-paginated): `list_resource_kv_stores` → `list_resource_kv_store_items` (keys, optional `prefix` filter) → `get_resource_kv_store_item_value`.
+- Secret stores: `list_resource_secret_stores` → `list_resource_secret_store_items` (name + opaque digest only). Fastly never returns secret values — there is intentionally no per-value tool.
+- Compute ACLs: `list_resource_acls` → `find_resource_acl_entry` (single-call IP lookup, no scan). Entries are intentionally not enumerated.
 
-`get_service` fetches a service's metadata by `service_id`.
-Returns the service name, type (`vcl` or `wasm`), the currently-active `version` number, timestamps,
-and a `dependencies` map counting every config object attached to the active version
-(backends, directors, domains, healthchecks, plus the VCL-only object types when applicable).
-Use it as the standard entry point once a `service_id` is in hand —
-the active version it returns is what you'll feed to the version-scoped tools below.
+Multi-kind service tools (any service type):
+- `list_service_backends`, `list_service_directors`, `list_service_domains`, `list_service_healthchecks`
+- `list_service_dictionaries` → `list_service_dictionary_items` (the items endpoint is not version-scoped; write-only dicts return a clean text signal instead of 403)
+- `list_service_resources` — links to account-scoped stores (KV / secret / config) attached to this version
 
-`list_service_versions` enumerates a service's active version plus any open draft versions sitting above it.
-Locked historical versions and post-rollback artifacts are filtered out.
-Use it to inspect in-flight work that hasn't been deployed yet —
-typically when the agent needs to reason about pending changes or compare a draft against the live config.
+Compute-only (`type == \"wasm\"`):
+- `get_service_package` — package metadata (name, language, size, files_hash)
 
-Account-scoped resources (no `service_id` or `version` argument):
+VCL-only (`type == \"vcl\"`):
+- `list_service_vcl_apex_redirects`, `list_service_vcl_cache_settings`, `list_service_vcl_conditions`, `list_service_vcl_gzip`, `list_service_vcl_headers`, `list_service_vcl_rate_limiters`, `list_service_vcl_request_settings`, `list_service_vcl_response_objects`, `list_service_vcl_snippets`
 
-`list_resource_config_stores` enumerates the Fastly account's config stores, each enriched with its current `item_count`.
-Config stores live outside any single service version — they can be linked to several services and edited out-of-band of the versioned config.
-The optional `name` parameter forwards an exact-name filter to Fastly to retrieve a single store.
-
-`list_resource_kv_stores` enumerates the Fastly account's KV stores. KV stores are designed for high-volume key/value storage and have no `item_count` info endpoint — only identity + timestamps are surfaced.
-Pagination is cursor-based: pass `next_cursor` from a previous response back as `cursor` to retrieve the next page.
-
-`list_resource_secret_stores` enumerates the Fastly account's secret stores. Secret stores hold credentials and other sensitive material that VCL/Compute services consume only at runtime; \
-their values are never returned by the Fastly API — by design — so there is no `get_resource_secret_store_item_value` tool. \
-Listing the secrets in a store via `list_resource_secret_store_items` exposes only the secret `name`, an opaque `digest` (useful to detect rotations), and `created_at`. \
-Pagination is cursor-based.
-
-Once a `(service_id, version)` pair is in hand, pass it to one of:
-
-Multi-kind (works on every service):
-- `list_service_backends` — origin backends
-- `list_service_dictionaries` — edge dictionaries with their item count, digest, and last-updated timestamp
-- `list_service_directors` — load-balancing groups of backends
-- `list_service_domains` — domains routed to this version
-- `list_service_healthchecks` — health probes
-
-Compute-only (require `type: \"wasm\"`):
-- `get_service_package` — Compute package metadata (name, language, files_hash, …)
-
-VCL-only (require `type: \"vcl\"`):
-- `list_service_vcl_apex_redirects` — apex-domain redirects
-- `list_service_vcl_cache_settings` — cache rules (TTL, action, gating)
-- `list_service_vcl_conditions` — named VCL boolean expressions
-- `list_service_vcl_gzip` — gzip compression configurations
-- `list_service_vcl_headers` — header rules (set/append/delete/regex)
-- `list_service_vcl_rate_limiters` — RPS-based rate limiters
-- `list_service_vcl_request_settings` — request-shaping rules
-- `list_service_vcl_response_objects` — canned HTTP responses
-- `list_service_vcl_snippets` — VCL code snippets
-
-Cross-references between tools:
-- A backend's `healthcheck` field is the `name` of a `list_service_healthchecks` entry.
-- A director's `backends` array contains the `name`s of `list_service_backends` entries.
-- A dictionary's `id` returned by `list_service_dictionaries` is the input for \
-  `list_service_dictionary_items` to fetch its key/value entries (write-only dictionaries refuse this read).
-- A config store's `id` returned by `list_resource_config_stores` is the input for \
-  `list_resource_config_store_items` to fetch its keys (values are NOT returned). \
-  Each key returned can then be passed to `get_resource_config_store_item_value` to read its actual value.
-- A KV store's `id` returned by `list_resource_kv_stores` is the input for `list_resource_kv_store_items` \
-  to fetch its keys (values are NOT returned — Fastly KV requires per-key reads). \
-  Each key returned can then be passed to `get_resource_kv_store_item_value` to read its actual value.
-- A secret store's `id` returned by `list_resource_secret_stores` is the input for `list_resource_secret_store_items` \
-  to enumerate the secrets it holds (name + opaque digest + creation timestamp). \
-  There is intentionally no per-secret value tool: the Fastly API never exposes secret values — they are reachable only at runtime from VCL or Compute.
-- Cache settings, headers, request/response settings, and rate limiters reference VCL conditions \
-  by `name` via their `*_condition` fields — chain with `list_service_vcl_conditions`.\
+Cross-references:
+- `list_service_backends[].healthcheck` and `list_service_directors[].backends[]` reference healthchecks/backends by `name`.
+- VCL conditions are referenced by `name` from cache_settings, headers, request/response_settings, and rate_limiters via `*_condition` fields.
+- `list_service_resources[].resource_id` + `.resource_type` (`config` | `kv-store` | `secret-store`) drive the next call to the matching account-scoped `*_items` tool.
+- 404s from Fastly (unknown service / version / store / key / ACL) are downgraded to plain-text messages — treat as a clean empty signal, not a failure to retry.\
 ";

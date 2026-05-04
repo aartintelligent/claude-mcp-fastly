@@ -14,10 +14,12 @@
 //! then delegates to `run`.
 
 pub mod find_domain;
-pub mod get_service;
+pub mod find_resource_acl_entry;
 pub mod get_resource_config_store_item_value;
 pub mod get_resource_kv_store_item_value;
+pub mod get_service;
 pub mod get_service_package;
+pub mod list_resource_acls;
 pub mod list_resource_config_store_items;
 pub mod list_resource_config_stores;
 pub mod list_resource_kv_store_items;
@@ -30,6 +32,7 @@ pub mod list_service_dictionary_items;
 pub mod list_service_directors;
 pub mod list_service_domains;
 pub mod list_service_healthchecks;
+pub mod list_service_resources;
 pub mod list_service_vcl_apex_redirects;
 pub mod list_service_vcl_cache_settings;
 pub mod list_service_vcl_conditions;
