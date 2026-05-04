@@ -1,36 +1,42 @@
 # ─────────────────────────────────────────────────────────────────────────────
-#  release — triggered by pushing a version tag `vX.Y.Z`.
+#  release — release-please–driven release flow.
 #
-#  Expected release flow (run locally on master before pushing the tag):
-#    1.  `cargo set-version <X.Y.Z>`  (or hand-edit `Cargo.toml`).
-#    2.  `changie batch <X.Y.Z>`     — moves fragments from
-#                                       `.changes/unreleased/*.yaml` into
-#                                       `.changes/<X.Y.Z>.md`.
-#    3.  `changie merge`             — rebuilds top-level `CHANGELOG.md`.
-#    4.  Commit + push the three changes to `master`. If you go through a
-#        PR, apply the `skip-changelog` label: a release-prep commit
-#        removes fragments from `.changes/unreleased/` (instead of adding
-#        one), so the changelog-check workflow would otherwise reject it.
-#    5.  `git tag vX.Y.Z && git push origin vX.Y.Z`  — triggers this
-#        workflow.
+#  Two jobs, single workflow:
 #
-#  The workflow is side-effect-only on publication: it does not mutate
-#  the repo. Any "preparation" belongs on `master` before tagging.
+#  1.  `release-please` runs on every push to `master`. It maintains a
+#      long-lived "Release PR" that aggregates Conventional Commits since
+#      the last release, computes the next semver bump, updates
+#      `Cargo.toml` + `Cargo.lock` + `CHANGELOG.md`, and (when that PR is
+#      merged) creates the GitHub Release and pushes the `vX.Y.Z` tag.
+#
+#  2.  `publish` runs only when the Release PR has just been merged
+#      (`release_created == true`). It re-runs the local gates and pushes
+#      the Docker image to Docker Hub at the new version, plus `:latest`.
 #
 #  Required secrets (Settings → Secrets and variables → Actions):
-#    - DOCKERHUB_USERNAME — Docker Hub login (e.g. `aartintelligent`)
+#    - RELEASE_PAT       — Personal Access Token with `repo` scope.
+#                          Required because release-please needs to push
+#                          commits and tags from a workflow in a way that
+#                          re-triggers downstream events; the default
+#                          `GITHUB_TOKEN` cannot.
+#    - DOCKERHUB_USERNAME — Docker Hub login (e.g. `aartintelligent`).
 #    - DOCKERHUB_TOKEN    — Docker Hub Personal Access Token with
-#                            `Read, Write, Delete` scope on the image
-#                            repository `aartintelligent/claude-mcp-fastly`.
+#                            `Read, Write, Delete` scope on
+#                            `aartintelligent/claude-mcp-fastly`.
+#
+#  Configuration lives in:
+#    - release-please-config.json     — release-type, sections, scopes
+#    - .release-please-manifest.json  — current version state
 # ─────────────────────────────────────────────────────────────────────────────
 name: release
 
 on:
   push:
-    tags: ["v*.*.*"]
+    branches: [master]
 
 permissions:
-  contents: write # needed by `gh release create`
+  contents: write
+  pull-requests: write
 
 env:
   CARGO_TERM_COLOR: always
@@ -38,8 +44,25 @@ env:
   IMAGE: aartintelligent/claude-mcp-fastly
 
 jobs:
-  release:
-    name: publish ${{ github.ref_name }}
+  release-please:
+    name: release-please
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.RELEASE_PAT }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  publish:
+    name: publish ${{ needs.release-please.outputs.tag_name }}
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -48,38 +71,9 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
 
-      - name: Compute version (strip leading `v`)
-        id: ver
-        run: |
-          version="${GITHUB_REF_NAME#v}"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "Version: $version"
-
-      - name: Verify tag matches Cargo.toml version
-        run: |
-          version="${{ steps.ver.outputs.version }}"
-          cargo_ver=$(awk -F'"' '/^version[[:space:]]*=/ { print $2; exit }' Cargo.toml)
-          if [[ "$version" != "$cargo_ver" ]]; then
-            echo "::error::Tag $GITHUB_REF_NAME does not match Cargo.toml version $cargo_ver"
-            echo "::error::Run 'cargo set-version $version' (or edit Cargo.toml) before tagging."
-            exit 1
-          fi
-          echo "Version confirmed: $cargo_ver"
-
-      - name: Verify Changie batch file exists for this version
-        run: |
-          version="${{ steps.ver.outputs.version }}"
-          if [[ ! -f ".changes/$version.md" ]]; then
-            echo "::error::Missing .changes/$version.md"
-            echo "::error::Run 'changie batch $version' and 'changie merge' on master before tagging."
-            exit 1
-          fi
-          echo "Release notes for $version:"
-          cat ".changes/$version.md"
-
       - name: Re-run the local gates
-        # Belt and braces: PR-time CI already ran these, but tags can be
-        # pushed from any branch and we want certainty before publishing.
+        # Belt and braces: PR-time CI already ran these, but we want
+        # certainty on every published artifact.
         run: |
           cargo fmt --all -- --check
           cargo clippy --all-targets --locked -- -D warnings
@@ -103,15 +97,7 @@ jobs:
           push: true
           pull: true # pull fresh DHI base images at every release
           tags: |
-            ${{ env.IMAGE }}:${{ steps.ver.outputs.version }}
+            ${{ env.IMAGE }}:${{ needs.release-please.outputs.version }}
             ${{ env.IMAGE }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Create GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create "$GITHUB_REF_NAME" \
-            --title "$GITHUB_REF_NAME" \
-            --notes-file ".changes/${{ steps.ver.outputs.version }}.md"
