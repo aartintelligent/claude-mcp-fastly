@@ -31,11 +31,11 @@ docker run --rm -p 8000:8000 -e APP_FASTLY__API_TOKEN=<token> aartintelligent/cl
 
 Two-stage build on Docker Hardened Images: `dhi.io/rust:1.95-debian13-dev` for build, `dhi.io/debian-base:trixie-debian13` for runtime.
 
-Changelog entries use [Changie](https://github.com/miniscruff/changie) — `changie new` drops a fragment under `.changes/unreleased/`. `changie batch <version>` + `changie merge` regenerate `CHANGELOG.md` at release time. Do not hand-edit `CHANGELOG.md`. Kinds and versioning rules are in `.changie.yaml`.
+Releases are driven by [release-please](https://github.com/googleapis/release-please). Every push to `master` runs `release-please-action`, which maintains a single long-lived **Release PR** (`chore(release): X.Y.Z`) aggregating Conventional Commits since the last release. Merging that PR triggers the `publish` job — Docker push to `aartintelligent/claude-mcp-fastly:{version,latest}` and a GitHub Release. Do not hand-edit `CHANGELOG.md`; release-please owns it. Configuration lives in `release-please-config.json` and `.release-please-manifest.json`.
 
 ## Commit messages
 
-Commits follow [Conventional Commits v1.0.0](https://www.conventionalcommits.org/en/v1.0.0/). The two layers are complementary, not redundant: the Conventional Commits prefix documents the git history, Changie documents the user-facing changelog. A commit can have both, one, or neither — the table below says which.
+Commits follow [Conventional Commits v1.0.0](https://www.conventionalcommits.org/en/v1.0.0/). The commit message **is** the changelog source — release-please groups commits by type, computes the next semver, and writes the section. Be deliberate.
 
 Format:
 
@@ -47,25 +47,25 @@ Format:
 [optional footer(s), e.g. BREAKING CHANGE:, Refs: #123]
 ```
 
-Mapping of Conventional Commit types to Changie kinds (kinds are declared in `.changie.yaml`):
+Mapping of types to changelog sections and SemVer bumps (declared in `release-please-config.json`):
 
-| CC type    | Changie kind | SemVer bump | Fragment required? |
-| ---------- | ------------ | ----------- | ------------------ |
-| `feat`     | `Added`      | minor       | ✅ yes             |
-| `fix`      | `Fixed`      | patch       | ✅ yes             |
-| `perf`     | `Fixed` or `Changed` depending on user impact | patch / major | ✅ yes |
-| `refactor` | (none)       | —           | ❌ no              |
-| `docs`     | (none)       | —           | ❌ no              |
-| `test`     | (none)       | —           | ❌ no              |
-| `chore`    | (none)       | —           | ❌ no              |
-| `ci`       | (none)       | —           | ❌ no              |
-| `build`    | (none)       | —           | ❌ no              |
-| `style`    | (none)       | —           | ❌ no              |
-| `revert`   | matches the reverted commit's kind | matches | ✅ yes if the original required one |
+| CC type    | Changelog section | SemVer bump | Visible in changelog? |
+| ---------- | ----------------- | ----------- | --------------------- |
+| `feat`     | `Added`           | minor       | ✅ yes                |
+| `fix`      | `Fixed`           | patch       | ✅ yes                |
+| `perf`     | `Performance`     | patch       | ✅ yes                |
+| `revert`   | `Reverted`        | patch       | ✅ yes                |
+| `refactor` | (hidden)          | —           | ❌ no                 |
+| `docs`     | (hidden)          | —           | ❌ no                 |
+| `test`     | (hidden)          | —           | ❌ no                 |
+| `chore`    | (hidden)          | —           | ❌ no                 |
+| `ci`       | (hidden)          | —           | ❌ no                 |
+| `build`    | (hidden)          | —           | ❌ no                 |
+| `style`    | (hidden)          | —           | ❌ no                 |
 
-Breaking changes — indicated either by the `!` suffix (`feat!:`, `fix!:`) or by a `BREAKING CHANGE:` footer — map to the Changie kind `Changed` (major) or `Removed` (major) depending on whether a tool's args/output is altered or a tool is deleted. A `Deprecated` marker belongs on the commit that *adds* the deprecation, not on the later `Removed` one.
+Breaking changes — indicated either by the `!` suffix (`feat!:`, `fix!:`) or by a `BREAKING CHANGE:` footer — bump major. Until the project ships `1.0.0`, `bump-minor-pre-major` keeps breaking changes at minor and `bump-patch-for-minor-pre-major` keeps `feat` at patch — this matches SemVer's pre-1.0 convention.
 
-The `Security` Changie kind has no direct Conventional Commits equivalent: use `fix(security):` or `fix!:` and pick `Security` when authoring the fragment. This is intentional — security fixes (token-handling, transport, leakage paths) want a dedicated changelog bucket even when the git type is a generic `fix`.
+For security-sensitive fixes (token-handling, transport, leakage paths), use `fix(security):` so the scope makes the intent searchable in git history; release-please will still file it under `Fixed`.
 
 ## Pre-commit / local gates
 
@@ -85,7 +85,7 @@ Bypass any future hook only in emergencies with `git commit --no-verify`. If/whe
 
 ### Boot flow (`src/main.rs`)
 
-`main` → `run` → `Config::load` → `AppState::new` → `build_router` → `serve`. Shutdown driven by a single `CancellationToken` cancelled on `SIGINT` (all platforms) or `SIGTERM` (Unix). The token is threaded into the rmcp transport so in-flight MCP sessions drain on `docker stop`.
+`main` → `telemetry::init` → `Config::load` → `AppState::new` → `build_router` → `serve`. Shutdown via `shutdown::wait` is driven by a single `CancellationToken` cancelled on `SIGINT` (all platforms) or `SIGTERM` (Unix). The token is threaded into the rmcp transport so in-flight MCP sessions drain on `docker stop`. Tracing setup lives in `src/telemetry.rs`, signal handling in `src/shutdown.rs`.
 
 ### Configuration (`src/config.rs`)
 
