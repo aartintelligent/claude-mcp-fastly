@@ -71,7 +71,7 @@ The most common contribution. The shape:
 2. Register it in `src/mcp/tools/mod.rs`.
 3. Add a thin `#[tool(description = "…")]` adapter on `Handler` in `src/mcp/handler.rs` that delegates to `<name>::run`.
 4. Update `INSTRUCTIONS` in `src/mcp/handler.rs` under the right section (entry points / account-scoped / multi-kind / Compute-only / VCL-only) and add cross-references where relevant.
-5. Update `MCP.md` (the public catalog of tools) — add the tool to the table, the group list, the cross-references, and the per-tool details section.
+5. Update `README.md` (the public catalog of tools) — add the tool to the table, the group list, the cross-references, and the per-tool details section.
 
 If the tool wraps an SDK endpoint that is broken upstream (the `list_directors` workaround in `src/mcp/tools/list_service_directors.rs` is the canonical case), document the fallback at the call site so it can be removed in one shot when Fastly fixes the spec.
 
@@ -84,9 +84,8 @@ If the tool wraps an SDK endpoint that is broken upstream (the `list_directors` 
 ## Documentation
 
 - The crate-level rustdoc and per-module rustdoc in `src/` are the canonical description of the code. Update them whenever the public surface changes.
-- `MCP.md` is the shop window; update the tool table, the five-group list, the cross-references, and the per-tool details when you change behaviour.
+- `README.md` is the shop window and the public catalog of tools; update the tool table, the five-group list, the cross-references, and the per-tool details when you change behaviour.
 - `CLAUDE.md` captures project-local context for AI-assisted editing; keep it in sync if you change conventions or tooling.
-- `README.md` should stay aligned with `MCP.md`'s tool count and high-level shape.
 
 ## Changelog
 
