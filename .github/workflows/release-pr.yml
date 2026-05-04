@@ -1,0 +1,126 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  release-pr — opens (or refreshes) the Release PR every time a fragment-
+#  bearing change lands on `master`.
+#
+#  How it works:
+#    1.  Push to master → workflow runs.
+#    2.  If `.changes/unreleased/*.yaml` is empty, exit cleanly (the merge
+#        was a `refactor` / `docs` / `chore` and does not warrant a release).
+#    3.  Otherwise, compute the next semver via `changie next auto`, bump
+#        `Cargo.toml`, run `changie batch <ver>` + `changie merge`, and use
+#        `peter-evans/create-pull-request` to open or update a single
+#        long-lived branch (`release-pr/master`).
+#    4.  The maintainer reviews and merges that PR. Merging hands off to
+#        the `release-tag` workflow, which tags `vX.Y.Z` and triggers
+#        `release.yml` (Docker push + GitHub Release).
+#
+#  Loop avoidance: `paths-ignore` skips runs when the only changes are the
+#  files this workflow itself maintains (`.changes/**`, `Cargo.toml`,
+#  `Cargo.lock`, `CHANGELOG.md`). A regular feature merge that adds a
+#  fragment also touches `src/`, so it is not filtered out.
+#
+#  Required secret (Settings → Secrets and variables → Actions):
+#    - RELEASE_PAT — a Personal Access Token with `repo` scope. Required
+#                    because `peter-evans/create-pull-request` needs it to
+#                    trigger downstream workflows on the created PR (the
+#                    default `GITHUB_TOKEN` cannot).
+# ─────────────────────────────────────────────────────────────────────────────
+name: release-pr
+
+on:
+  push:
+    branches: [master]
+    paths-ignore:
+      - ".changes/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "CHANGELOG.md"
+  workflow_dispatch:
+
+concurrency:
+  group: release-pr
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  prepare:
+    name: prepare release PR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PAT }}
+
+      - name: Detect unreleased fragments
+        id: fragments
+        run: |
+          shopt -s nullglob
+          frags=(.changes/unreleased/*.yaml)
+          if (( ${#frags[@]} == 0 )); then
+            echo "No unreleased fragments — nothing to release."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "Found ${#frags[@]} fragment(s):"
+          printf '  - %s\n' "${frags[@]}"
+
+      - uses: miniscruff/changie-action@v2
+        if: steps.fragments.outputs.found == 'true'
+        with:
+          version: latest
+          args: --version
+
+      - name: Compute next version
+        id: ver
+        if: steps.fragments.outputs.found == 'true'
+        run: |
+          next=$(changie next auto)
+          echo "next=$next" >> "$GITHUB_OUTPUT"
+          echo "Next version: $next"
+
+      - uses: dtolnay/rust-toolchain@stable
+        if: steps.fragments.outputs.found == 'true'
+
+      - uses: taiki-e/install-action@v2
+        if: steps.fragments.outputs.found == 'true'
+        with:
+          tool: cargo-edit
+
+      - name: Bump Cargo.toml and refresh Cargo.lock
+        if: steps.fragments.outputs.found == 'true'
+        run: |
+          cargo set-version "${{ steps.ver.outputs.next }}"
+          cargo update --workspace --offline
+
+      - name: Batch fragments and rebuild CHANGELOG
+        if: steps.fragments.outputs.found == 'true'
+        run: |
+          changie batch "${{ steps.ver.outputs.next }}"
+          changie merge
+
+      - name: Open or update release PR
+        if: steps.fragments.outputs.found == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.RELEASE_PAT }}
+          branch: release-pr/master
+          base: master
+          delete-branch: true
+          commit-message: "chore(release): ${{ steps.ver.outputs.next }}"
+          title: "chore(release): ${{ steps.ver.outputs.next }}"
+          body: |
+            Automated release PR — bumps `Cargo.toml` to **${{ steps.ver.outputs.next }}**, batches the unreleased changelog fragments into `.changes/${{ steps.ver.outputs.next }}.md`, and rebuilds `CHANGELOG.md`.
+
+            Merging this PR will:
+            1. trigger `release-tag` to push tag `v${{ steps.ver.outputs.next }}`,
+            2. which fires `release.yml` (re-run gates, build & push the Docker image, create the GitHub Release).
+
+            ⚠️ Until merge, every additional PR landing on `master` will refresh this PR's branch with the updated version + batched fragments.
+          labels: |
+            skip-changelog
+            release

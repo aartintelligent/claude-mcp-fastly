@@ -1,0 +1,85 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  release-tag — pushes the `vX.Y.Z` tag whenever the Release PR lands on
+#  `master`.
+#
+#  Detection: reads `Cargo.toml`'s version on every push to master and
+#  tags `v<version>` if the corresponding tag does not yet exist. This is
+#  naturally idempotent — running on an unrelated push is a no-op because
+#  the tag from the previous release already exists.
+#
+#  Push of the tag re-triggers `release.yml` (which is gated on
+#  `tags: ["v*.*.*"]`) — that workflow re-runs the gates, builds and
+#  pushes the Docker image, and creates the GitHub Release.
+#
+#  Required secret (Settings → Secrets and variables → Actions):
+#    - RELEASE_PAT — a Personal Access Token with `repo` scope. Pushing
+#                    the tag with the default `GITHUB_TOKEN` would NOT
+#                    trigger downstream workflows; using a PAT does.
+# ─────────────────────────────────────────────────────────────────────────────
+name: release-tag
+
+on:
+  push:
+    branches: [master]
+
+concurrency:
+  group: release-tag
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    name: tag merged release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PAT }}
+
+      - name: Read version from Cargo.toml
+        id: ver
+        run: |
+          version=$(awk -F'"' '/^version[[:space:]]*=/ { print $2; exit }' Cargo.toml)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Cargo.toml version: $version"
+
+      - name: Skip if tag already exists
+        id: check
+        run: |
+          tag="v${{ steps.ver.outputs.version }}"
+          if git rev-parse -q --verify "refs/tags/$tag" > /dev/null 2>&1; then
+            echo "Tag $tag already exists — nothing to do."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Tag $tag does not exist — will create."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify Changie batch file is in place
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          version="${{ steps.ver.outputs.version }}"
+          if [[ ! -f ".changes/$version.md" ]]; then
+            echo "::error::Cargo.toml is at $version but .changes/$version.md is missing."
+            echo "::error::Did you bump Cargo.toml manually without running changie batch?"
+            exit 1
+          fi
+          echo "Release notes for $version:"
+          cat ".changes/$version.md"
+
+      - name: Configure git identity
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Tag and push
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          tag="v${{ steps.ver.outputs.version }}"
+          git tag -a "$tag" -m "Release $tag"
+          git push origin "$tag"
+          echo "Pushed tag $tag — release workflow will follow."
