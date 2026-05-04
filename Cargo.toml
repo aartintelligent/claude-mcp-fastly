@@ -9,7 +9,7 @@ license = "MIT"
 readme = "README.md"
 homepage = "https://github.com/aartintelligent/claude-mcp-fastly"
 repository = "https://github.com/aartintelligent/claude-mcp-fastly"
-keywords = ["mcp", "claude", "faslty", "ai"]
+keywords = ["mcp", "claude", "fastly", "ai"]
 categories = ["command-line-utilities", "development-tools"]
 
 
