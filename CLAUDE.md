@@ -31,7 +31,7 @@ docker run --rm -p 8000:8000 -e APP_FASTLY__API_TOKEN=<token> aartintelligent/cl
 
 Two-stage build on Docker Hardened Images: `dhi.io/rust:1.95-debian13-dev` for build, `dhi.io/debian-base:trixie-debian13` for runtime.
 
-Releases are driven by [release-please](https://github.com/googleapis/release-please). Every push to `master` runs `release-please-action`, which maintains a single long-lived **Release PR** (`chore(release): X.Y.Z`) aggregating Conventional Commits since the last release. Merging that PR triggers the `publish` job — Docker push to `aartintelligent/claude-mcp-fastly:{version,latest}` and a GitHub Release. Do not hand-edit `CHANGELOG.md`; release-please owns it. Configuration lives in `release-please-config.json` and `.release.json`.
+Releases are driven by [release-please](https://github.com/googleapis/release-please). Every push to `master` runs `release-please-action`, which maintains a single long-lived **Release PR** (`chore(release): X.Y.Z`) aggregating Conventional Commits since the last release. Merging that PR triggers the `publish` job — Docker push to `aartintelligent/claude-mcp-fastly:{version,latest}` and a GitHub Release. Do not hand-edit `CHANGELOG.md`; release-please owns it. Configuration lives in `.release-config.json` and `.release.json`.
 
 ## Commit messages
 
@@ -47,7 +47,7 @@ Format:
 [optional footer(s), e.g. BREAKING CHANGE:, Refs: #123]
 ```
 
-Mapping of types to changelog sections and SemVer bumps (declared in `release-please-config.json`):
+Mapping of types to changelog sections and SemVer bumps (declared in `.release-config.json`):
 
 | CC type    | Changelog section | SemVer bump | Visible in changelog? |
 | ---------- | ----------------- | ----------- | --------------------- |
