@@ -26,7 +26,7 @@
 #
 #  Configuration lives in:
 #    - release-please-config.json     — release-type, sections, scopes
-#    - .release-please-manifest.json  — current version state
+#    - .release.json                  — current version state
 # ─────────────────────────────────────────────────────────────────────────────
 name: release
 
@@ -57,7 +57,7 @@ jobs:
         with:
           token: ${{ secrets.RELEASE_PAT }}
           config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
+          manifest-file: .release.json
 
   publish:
     name: publish ${{ needs.release-please.outputs.tag_name }}

@@ -89,7 +89,7 @@ If the tool wraps an SDK endpoint that is broken upstream (the `list_directors` 
 
 ## Changelog and releases
 
-Releases are driven by [release-please](https://github.com/googleapis/release-please) — the **commit message is the changelog entry**, there is no separate fragment to author. release-please reads the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) since the last release, computes the next semver, and maintains a single long-lived "Release PR" titled `chore(release): X.Y.Z`. When the maintainer merges that PR, the tag, the GitHub Release and the Docker image (`aartintelligent/claude-mcp-fastly:X.Y.Z` + `:latest`) are published automatically. Do **not** edit `CHANGELOG.md` directly — release-please owns it. Configuration lives in `release-please-config.json` and `.release-please-manifest.json`.
+Releases are driven by [release-please](https://github.com/googleapis/release-please) — the **commit message is the changelog entry**, there is no separate fragment to author. release-please reads the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) since the last release, computes the next semver, and maintains a single long-lived "Release PR" titled `chore(release): X.Y.Z`. When the maintainer merges that PR, the tag, the GitHub Release and the Docker image (`aartintelligent/claude-mcp-fastly:X.Y.Z` + `:latest`) are published automatically. Do **not** edit `CHANGELOG.md` directly — release-please owns it. Configuration lives in `release-please-config.json` and `.release.json`.
 
 Pick the right Conventional Commit type:
 
